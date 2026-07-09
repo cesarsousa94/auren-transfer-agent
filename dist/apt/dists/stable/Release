@@ -1,0 +1,20 @@
+Origin: Auren
+Label: Auren Transfer Agent
+Suite: stable
+Codename: stable
+Date: Thu, 09 Jul 2026 20:25:04 +0000
+Architectures: amd64
+Components: main
+Description: Auren Transfer Agent Debian repository
+MD5Sum:
+ a4ca26629aaa669bf5d9445b6533dc4f              654 main/binary-amd64/Packages
+ e7a5eae421cdf45aba1ce799e66e9d7c              447 main/binary-amd64/Packages.gz
+SHA1:
+ e873ec1ca0766709e2fd342482358c62c7389b2c              654 main/binary-amd64/Packages
+ 542da5941554831e2fc829a09b4a58e427f2f289              447 main/binary-amd64/Packages.gz
+SHA256:
+ 70a3f2a7aa0a884da79f77d3ea12e9871d3f668db7acb2fda9cae7232387c0e9              654 main/binary-amd64/Packages
+ 6deace7b7fbe722ef0047fa8c8c950fa42c730ab0b1235027a0bb9e7e5eebce0              447 main/binary-amd64/Packages.gz
+SHA512:
+ 6c2d5f0f3502e284372fbe338172578302e20798fa5be68e6db859e347e487e67170fbfb2db16db7ba595cb7bec0380d0c49661c766c1ea79fa39a5164436f4e              654 main/binary-amd64/Packages
+ ba0726fd412e36b69cbd73e65542bdb188c2a7462c3b3297d893161e1f20b0c234670a13fcab597abd3e77d86fbb3daddaa23758b19ec41d4737fb93db56b5b0              447 main/binary-amd64/Packages.gz
