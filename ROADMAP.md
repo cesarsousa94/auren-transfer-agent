@@ -2,7 +2,7 @@
 
 **Document version:** 1.0  
 **Status:** Approved  
-**Current delivery:** v1.6.0
+**Current delivery:** v1.7.0
 
 ## Objective
 
@@ -100,6 +100,7 @@ This structure is definitive and must not be reorganized.
 - `v1.4.0` — Gateway Runtime
 - `v1.5.0` — Operational Hardening
 - `v1.6.0` — Linux Package & Zero-Touch Bootstrap
+- `v1.7.0` — APT Repository Distribution
 
 ## EPIC 0 — Foundation Base
 
@@ -336,7 +337,7 @@ Completed after EPIC 15:
 
 Completed after EPIC 17:
 
-- v1.6.0 — operational hardening/drain/dead-letter/secret rotation.
+- v1.5.0 — operational hardening/drain/dead-letter/secret rotation.
 
 ## EPIC 16 — Auren Storage Production Adapter
 
@@ -354,7 +355,7 @@ Delivered:
 
 Completed after EPIC 17:
 
-- v1.6.0 — operational hardening/drain/dead-letter/secret rotation.
+- v1.5.0 — operational hardening/drain/dead-letter/secret rotation.
 
 
 
@@ -375,7 +376,7 @@ Delivered:
 
 Completed after EPIC 17:
 
-- v1.6.0 — operational hardening/drain/dead-letter/secret rotation.
+- v1.5.0 — operational hardening/drain/dead-letter/secret rotation.
 
 
 ## EPIC 18 — Operational Hardening
@@ -384,24 +385,30 @@ Completed after EPIC 17:
 
 ## EPIC 19 — Linux Package & Zero-Touch Bootstrap
 
-- `.deb` package — complete in `v1.6.0`
-- systemd persistent runtime — complete in `v1.6.0`
-- Linux user/group and canonical directories — complete in `v1.6.0`
-- `bootstrap`, `doctor` and `status` commands — complete in `v1.6.0`
-- one-line installer — complete in `v1.6.0`
-- APT repository skeleton — complete in `v1.6.0`
-
 **v1.6.0 status:** complete.
 
 Delivered:
 
-- operational hardening runtime `internal/ops`;
-- graceful drain for transfer claim and gateway session admission;
-- Media Hub drain started/completed callbacks;
-- backpressure by active jobs, sessions and egress;
-- disk pressure guard before heavy transfer claims;
-- local dead-letter storage for failed attempts;
-- lease renewal callbacks for long-running jobs;
-- operator control watcher for cancel/pause/release/drain;
-- authenticated worker routes;
-- hardening config, deployment examples and tests.
+- `.deb` package;
+- systemd persistent runtime;
+- Linux user/group and canonical directories;
+- `bootstrap`, `doctor` and `status` commands;
+- one-line installer;
+- APT repository skeleton;
+- durable node identity under `/var/lib/auren-transfer-agent`;
+- production config under `/etc/auren-transfer-agent`.
+
+## EPIC 20 — APT Repository Distribution
+
+**v1.7.0 status:** complete.
+
+Delivered:
+
+- static APT repository builder under `scripts/build-apt-repo.sh`;
+- Debian repository layout with `pool/`, `dists/`, `Packages`, `Packages.gz` and `Release`;
+- optional GPG signing for `Release.gpg` and `InRelease`;
+- S3/CloudFront publishing helper under `scripts/publish-apt-s3.sh`;
+- APT-aware installer flags for online repository installs;
+- repository-side `install-apt.sh`;
+- release artifact `auren-transfer-agent-apt-repo-v1.7.0.tar.gz`;
+- clearer systemd diagnostics for WSL/container labs without breaking successful registration.

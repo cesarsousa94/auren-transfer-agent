@@ -1,5 +1,28 @@
 # Changelog
 
+## [v1.7.0] - 2026-07-09
+
+### Added
+
+- Added APT repository distribution for Debian/Ubuntu installs.
+- Added production-grade static APT repository builder through `scripts/build-apt-repo.sh`.
+- Added optional GPG signing support for `Release.gpg` and `InRelease` using `APT_GPG_KEY_ID`.
+- Added AWS S3/CloudFront publishing helper through `scripts/publish-apt-s3.sh`.
+- Added APT-aware installer mode with `--apt`, `--repo-url`, `--apt-key-url`, `--codename` and `--component`.
+- Added repository-side `install-apt.sh` generated inside `dist/apt`.
+- Added deployment guide `docs/deployment/apt-repository.md`.
+
+### Changed
+
+- Release pipeline now generates ZIP, `.deb` and `auren-transfer-agent-apt-repo-v1.7.0.tar.gz`.
+- Bootstrap no longer fails the full registration flow when `--start-service` is used in an environment where `systemctl` exists but PID 1 is not systemd.
+- `doctor` and `status` now make systemd manageability clearer for WSL/container lab environments.
+
+### Notes
+
+- The repository can be hosted as static files by S3 + CloudFront, Nginx, Apache, R2 or any HTTPS origin.
+- Production APT publishing should use a signed repository; unsigned `trusted=yes` mode is kept only for private lab tests.
+
 ## [v1.6.0] - 2026-07-09
 
 ### Added
@@ -47,7 +70,7 @@
 ### Notes
 
 - This version expects the Media Hub side to expose the 47.15/47.16 transfer-agent claim/callback endpoints.
-- Public gateway runtime remains reserved for v1.6.0.
+- Public gateway runtime remains reserved for v1.7.0.
 - Full production multipart Auren Storage adapter remains reserved for v1.3.0.
 
 ## [v1.1.0] - 2026-07-09
@@ -63,7 +86,7 @@
 ### Notes
 
 - Real transfer execution remains intentionally unchanged and still uses the existing noop worker foundation. Download/upload offload is reserved for v1.2.0.
-- Public gateway runtime remains reserved for v1.6.0.
+- Public gateway runtime remains reserved for v1.7.0.
 
 ## [v1.0.0] - 2026-07-09
 

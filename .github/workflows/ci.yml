@@ -26,4 +26,4 @@ jobs:
       - name: Version
         run: ./bin/auren-transfer-agent --version
       - name: Release archive dry run
-        run: ./scripts/release.sh v1.6.0 --dry-run
+        run: ./scripts/release.sh v1.7.0 --dry-run

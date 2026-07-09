@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cesarsousa94/auren-transfer-agent/internal/mediahub"
+	"github.com/auren/auren-transfer-agent/internal/mediahub"
 )
 
 func (runtime *Runtime) proxy(writer http.ResponseWriter, request *http.Request, state mediahub.NodeState, resolved mediahub.GatewayResolveResult, record SessionRecord) {

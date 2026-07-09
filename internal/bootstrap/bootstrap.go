@@ -11,33 +11,33 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cesarsousa94/auren-transfer-agent/internal/cluster"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/config"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/dispatcher"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/download"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/gateway"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/heartbeat"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/identity"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/logger"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/mediahub"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/observability"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/ops"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/queue"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/resolver"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/runtime"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/scheduler"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/security"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/server"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/storage"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/transfer"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/upload"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/worker"
-	"github.com/cesarsousa94/auren-transfer-agent/pkg/plugins"
+	"github.com/auren/auren-transfer-agent/internal/cluster"
+	"github.com/auren/auren-transfer-agent/internal/config"
+	"github.com/auren/auren-transfer-agent/internal/dispatcher"
+	"github.com/auren/auren-transfer-agent/internal/download"
+	"github.com/auren/auren-transfer-agent/internal/gateway"
+	"github.com/auren/auren-transfer-agent/internal/heartbeat"
+	"github.com/auren/auren-transfer-agent/internal/identity"
+	"github.com/auren/auren-transfer-agent/internal/logger"
+	"github.com/auren/auren-transfer-agent/internal/mediahub"
+	"github.com/auren/auren-transfer-agent/internal/observability"
+	"github.com/auren/auren-transfer-agent/internal/ops"
+	"github.com/auren/auren-transfer-agent/internal/queue"
+	"github.com/auren/auren-transfer-agent/internal/resolver"
+	"github.com/auren/auren-transfer-agent/internal/runtime"
+	"github.com/auren/auren-transfer-agent/internal/scheduler"
+	"github.com/auren/auren-transfer-agent/internal/security"
+	"github.com/auren/auren-transfer-agent/internal/server"
+	"github.com/auren/auren-transfer-agent/internal/storage"
+	"github.com/auren/auren-transfer-agent/internal/transfer"
+	"github.com/auren/auren-transfer-agent/internal/upload"
+	"github.com/auren/auren-transfer-agent/internal/worker"
+	"github.com/auren/auren-transfer-agent/pkg/plugins"
 )
 
 // Run starts the Auren Transfer Agent foundation executable.
 //
-// v1.6.0 keeps the production runtime and adds Linux package/bootstrap commands.
+// v1.7.0 keeps the production runtime and adds Linux package/bootstrap commands.
 func Run(args []string) error {
 	if len(args) > 0 {
 		switch strings.TrimSpace(args[0]) {
@@ -487,7 +487,7 @@ func printHelp(out io.Writer) {
 	fmt.Fprintln(out, "  auren-transfer-agent status [--config /etc/auren-transfer-agent/agent.yaml]")
 	fmt.Fprintln(out, "  auren-transfer-agent [--config ./configs/agent.yaml] [--version] [--help]")
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Production v1.6.0 supports validated configuration, logging, HTTP APIs, identity, worker engine contracts, real transfer execution, Auren Storage v1 multipart production uploads, public Gateway Runtime, operational hardening, Debian/Ubuntu packaging, systemd persistence and zero-touch Media Hub bootstrap.")
+	fmt.Fprintln(out, "Production v1.7.0 supports validated configuration, logging, HTTP APIs, identity, worker engine contracts, real transfer execution, Auren Storage v1 multipart production uploads, public Gateway Runtime, operational hardening, Debian/Ubuntu packaging, systemd persistence and zero-touch Media Hub bootstrap.")
 }
 
 func rateLimitValue(enabled bool, configured int) int {

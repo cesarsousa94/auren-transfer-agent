@@ -1,6 +1,6 @@
-# Real Transfer Executor — v1.6.0
+# Real Transfer Executor — v1.7.0
 
-Auren Transfer Agent v1.2.0 added the real execution plane for Media Hub transfer jobs. v1.6.0 keeps that executor unchanged and adds the public Gateway Runtime as a separate HTTP path. Transfer jobs and streaming sessions remain independent execution lanes.
+Auren Transfer Agent v1.2.0 added the real execution plane for Media Hub transfer jobs. v1.7.0 keeps that executor unchanged and adds the public Gateway Runtime as a separate HTTP path. Transfer jobs and streaming sessions remain independent execution lanes.
 
 The Media Hub still owns all tenant, catalog, entitlement, storage and orchestration decisions. The Agent only executes the mechanical job it receives.
 
@@ -96,7 +96,7 @@ The foundation worker queue now uses `transfer_executor` instead of `noop`. A ma
 
 ## Deferred scope
 
-Not included in v1.6.0 transfer executor scope:
+Not included in v1.7.0 transfer executor scope:
 
 - drain/dead-letter/secret rotation hardening;
 - Media Hub UI/policy decisions.

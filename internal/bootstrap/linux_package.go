@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cesarsousa94/auren-transfer-agent/internal/config"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/identity"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/mediahub"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/runtime"
+	"github.com/auren/auren-transfer-agent/internal/config"
+	"github.com/auren/auren-transfer-agent/internal/identity"
+	"github.com/auren/auren-transfer-agent/internal/mediahub"
+	"github.com/auren/auren-transfer-agent/internal/runtime"
 )
 
 const (
@@ -119,13 +119,18 @@ func runBootstrap(args []string) error {
 		fmt.Fprintln(os.Stdout, "media-hub: registration skipped")
 	}
 	if options.StartService {
-		if err := systemctl("daemon-reload"); err != nil {
-			return err
+		if !systemdManageable() {
+			fmt.Fprintln(os.Stdout, "systemd: not available as PID 1; service start skipped")
+			fmt.Fprintf(os.Stdout, "systemd: run manually with: sudo auren-transfer-agent serve --config %s\n", options.ConfigPath)
+		} else {
+			if err := systemctl("daemon-reload"); err != nil {
+				return err
+			}
+			if err := systemctl("enable", "--now", options.SystemdUnit); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stdout, "systemd: enabled and started %s\n", options.SystemdUnit)
 		}
-		if err := systemctl("enable", "--now", options.SystemdUnit); err != nil {
-			return err
-		}
-		fmt.Fprintf(os.Stdout, "systemd: enabled and started %s\n", options.SystemdUnit)
 	}
 	fmt.Fprintln(os.Stdout, "bootstrap: complete")
 	return nil
@@ -179,6 +184,13 @@ func runDoctor(args []string) error {
 	} else {
 		checks = append(checks, warnLine("media_hub", "disabled"))
 	}
+	if systemdManageable() {
+		checks = append(checks, okLine("systemd", "manageable"))
+	} else if systemctlAvailable() {
+		checks = append(checks, warnLine("systemd", "systemctl exists but PID 1 is not systemd"))
+	} else {
+		checks = append(checks, warnLine("systemd", "systemctl not found"))
+	}
 	for _, check := range checks {
 		fmt.Fprintln(os.Stdout, check)
 	}
@@ -217,8 +229,10 @@ func runStatus(args []string) error {
 	} else {
 		fmt.Fprintf(os.Stdout, "node: not registered state=%s\n", statePath)
 	}
-	if systemctlAvailable() {
+	if systemdManageable() {
 		_ = runSystemctlStatus(linuxDefaultUnit)
+	} else if systemctlAvailable() {
+		fmt.Fprintln(os.Stdout, "systemd: not manageable; PID 1 is not systemd")
 	}
 	return nil
 }
@@ -557,6 +571,17 @@ func systemctl(args ...string) error {
 func systemctlAvailable() bool {
 	_, err := exec.LookPath("systemctl")
 	return err == nil
+}
+
+func systemdManageable() bool {
+	if !systemctlAvailable() {
+		return false
+	}
+	data, err := os.ReadFile("/proc/1/comm")
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(data)) == "systemd"
 }
 
 func runSystemctlStatus(unit string) error {

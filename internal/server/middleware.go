@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/cesarsousa94/auren-transfer-agent/internal/logger"
+	"github.com/auren/auren-transfer-agent/internal/logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
 )

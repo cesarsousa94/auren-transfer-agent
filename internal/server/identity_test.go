@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	agentidentity "github.com/cesarsousa94/auren-transfer-agent/internal/identity"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/runtime"
+	agentidentity "github.com/auren/auren-transfer-agent/internal/identity"
+	"github.com/auren/auren-transfer-agent/internal/runtime"
 )
 
 func TestIdentityHandlerReturnsFoundationPayload(t *testing.T) {

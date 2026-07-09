@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cesarsousa94/auren-transfer-agent/internal/heartbeat"
-	workerqueue "github.com/cesarsousa94/auren-transfer-agent/internal/queue"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/runtime"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/worker"
+	"github.com/auren/auren-transfer-agent/internal/heartbeat"
+	workerqueue "github.com/auren/auren-transfer-agent/internal/queue"
+	"github.com/auren/auren-transfer-agent/internal/runtime"
+	"github.com/auren/auren-transfer-agent/internal/worker"
 )
 
 const (

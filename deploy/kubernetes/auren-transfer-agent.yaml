@@ -72,7 +72,7 @@ spec:
     spec:
       containers:
         - name: agent
-          image: auren-transfer-agent:v1.6.0
+          image: auren-transfer-agent:v1.7.0
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:

@@ -23,8 +23,10 @@ func TestProductionArtifactsExist(t *testing.T) {
 		"scripts/release.sh",
 		"scripts/build-deb.sh",
 		"scripts/build-apt-repo.sh",
+		"scripts/publish-apt-s3.sh",
 		"docs/deployment/production.md",
 		"docs/deployment/linux-package-bootstrap.md",
+		"docs/deployment/apt-repository.md",
 	}
 
 	for _, file := range files {
@@ -47,6 +49,7 @@ func TestProductionArtifactsReferenceVersion(t *testing.T) {
 		".github/workflows/ci.yml",
 		"docs/deployment/production.md",
 		"docs/deployment/linux-package-bootstrap.md",
+		"docs/deployment/apt-repository.md",
 		"scripts/release.sh",
 		"scripts/build-deb.sh",
 	}
@@ -56,8 +59,8 @@ func TestProductionArtifactsReferenceVersion(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", file, err)
 		}
-		if !strings.Contains(string(content), "v1.6.0") && !strings.Contains(string(content), "1.6.0") {
-			t.Fatalf("expected %s to reference v1.6.0", file)
+		if !strings.Contains(string(content), "v1.7.0") && !strings.Contains(string(content), "1.7.0") {
+			t.Fatalf("expected %s to reference v1.7.0", file)
 		}
 	}
 }
@@ -71,6 +74,7 @@ func TestProductionScriptsAreExecutable(t *testing.T) {
 		"scripts/release.sh",
 		"scripts/build-deb.sh",
 		"scripts/build-apt-repo.sh",
+		"scripts/publish-apt-s3.sh",
 	}
 
 	for _, file := range files {

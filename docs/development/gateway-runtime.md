@@ -1,6 +1,6 @@
-# Gateway Runtime — v1.6.0
+# Gateway Runtime — v1.7.0
 
-Auren Transfer Agent v1.6.0 implements the public Media Hub gateway runtime. The Agent remains an execution/data-plane component: Media Hub validates the public token, chooses the delivery policy and returns the upstream instructions.
+Auren Transfer Agent v1.7.0 implements the public Media Hub gateway runtime. The Agent remains an execution/data-plane component: Media Hub validates the public token, chooses the delivery policy and returns the upstream instructions.
 
 ## Public handoff route
 
@@ -70,4 +70,4 @@ media_hub:
 
 ## Not included
 
-v1.6.0 adds drain/backpressure admission around this gateway runtime. The gateway still delegates token validation and upstream policy to Media Hub.
+v1.7.0 adds drain/backpressure admission around this gateway runtime. The gateway still delegates token validation and upstream policy to Media Hub.

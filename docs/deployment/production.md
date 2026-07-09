@@ -1,6 +1,6 @@
 # Production Deployment
 
-Version `v1.6.0` keeps the production runtime, Media Hub connector, transfer executor, Auren Storage v1 adapter, Gateway Runtime and operational hardening baseline, then adds Debian/Ubuntu packaging and zero-touch Media Hub bootstrap.
+Version `v1.7.0` keeps the production runtime, Media Hub connector, transfer executor, Auren Storage v1 adapter, Gateway Runtime and operational hardening baseline, then adds Debian/Ubuntu packaging, zero-touch Media Hub bootstrap and online APT repository distribution.
 
 The Agent remains business-rule free. It executes transport, queue, resolver, download, upload, Auren Storage adapter, gateway proxy/redirect, telemetry and security primitives exposed by previous EPICs. Media Hub decisions stay outside this repository.
 
@@ -9,7 +9,7 @@ The Agent remains business-rule free. It executes transport, queue, resolver, do
 Build the image:
 
 ```bash
-docker build -f docker/Dockerfile -t auren-transfer-agent:v1.6.0 .
+docker build -f docker/Dockerfile -t auren-transfer-agent:v1.7.0 .
 ```
 
 Run the container:
@@ -18,7 +18,7 @@ Run the container:
 docker run --rm -p 8080:8080 \
   -e AUREN_SERVER_ENABLED=true \
   -e AUREN_RUNTIME_ENVIRONMENT=production \
-  auren-transfer-agent:v1.6.0
+  auren-transfer-agent:v1.7.0
 ```
 
 ## Docker Compose
@@ -36,13 +36,13 @@ Build a `.deb` package:
 
 ```bash
 make build
-./scripts/build-deb.sh v1.6.0
+./scripts/build-deb.sh v1.7.0
 ```
 
 Install manually:
 
 ```bash
-sudo dpkg -i dist/auren-transfer-agent_1.6.0_amd64.deb
+sudo dpkg -i dist/auren-transfer-agent_1.7.0_amd64.deb
 sudo auren-transfer-agent bootstrap \
   --media-hub=https://media.example.com \
   --token=REGISTRATION_TOKEN \
@@ -60,6 +60,37 @@ curl -fsSL https://downloads.auren.app/agent/install.sh | sudo bash -s -- \
 ```
 
 The package creates the `auren-agent` system user, installs the binary under `/usr/bin`, stores config under `/etc/auren-transfer-agent`, stores durable node state under `/var/lib/auren-transfer-agent` and registers the service with systemd.
+
+
+## Online APT repository
+
+Build the static APT repository:
+
+```bash
+./scripts/release.sh v1.7.0
+```
+
+Publish `dist/apt` to S3/CloudFront, Nginx or another HTTPS static origin. For AWS S3:
+
+```bash
+S3_URI=s3://your-download-bucket/agent/apt \
+CLOUDFRONT_DISTRIBUTION_ID=E1234567890 \
+./scripts/publish-apt-s3.sh
+```
+
+Install from the online APT repository and register the node:
+
+```bash
+curl -fsSL https://downloads.auren.app/agent/install.sh | sudo bash -s -- \
+  --apt \
+  --repo-url https://downloads.auren.app/agent/apt \
+  --apt-key-url https://downloads.auren.app/agent/auren-transfer-agent.gpg \
+  --media-hub=https://media.example.com \
+  --token=REGISTRATION_TOKEN \
+  --role=worker
+```
+
+Unsigned `trusted=yes` mode is supported for private lab tests only. Production repositories should be GPG-signed. See `docs/deployment/apt-repository.md`.
 
 ## systemd
 
@@ -100,13 +131,13 @@ It runs formatting checks, tests, build, version output and release archive dry-
 Create a release archive:
 
 ```bash
-./scripts/release.sh v1.6.0
+./scripts/release.sh v1.7.0
 ```
 
 Dry-run the release pipeline:
 
 ```bash
-./scripts/release.sh v1.6.0 --dry-run
+./scripts/release.sh v1.7.0 --dry-run
 ```
 
 ## Runtime server

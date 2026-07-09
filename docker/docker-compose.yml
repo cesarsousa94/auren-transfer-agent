@@ -3,7 +3,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    image: auren-transfer-agent:v1.6.0
+    image: auren-transfer-agent:v1.7.0
     container_name: auren-transfer-agent
     restart: unless-stopped
     environment:

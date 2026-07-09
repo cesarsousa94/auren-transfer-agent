@@ -4,8 +4,8 @@ vars:
   APP_NAME: auren-transfer-agent
   CMD_PATH: ./cmd/agent
   BIN_DIR: bin
-  VERSION: v1.6.0
-  IMAGE: auren-transfer-agent:v1.6.0
+  VERSION: v1.7.0
+  IMAGE: auren-transfer-agent:v1.7.0
 
 tasks:
   default:
@@ -66,10 +66,16 @@ tasks:
       - ./scripts/build-deb.sh {{.VERSION}}
 
   apt-repo:
-    desc: Build local APT repository skeleton
+    desc: Build local APT repository
     deps: [deb]
     cmds:
       - ./scripts/build-apt-repo.sh
+
+  apt-publish:
+    desc: Publish APT repository to S3 using S3_URI
+    deps: [apt-repo]
+    cmds:
+      - ./scripts/publish-apt-s3.sh
 
   release:
     desc: Create release archive

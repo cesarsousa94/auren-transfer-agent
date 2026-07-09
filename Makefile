@@ -2,10 +2,10 @@ APP_NAME := auren-transfer-agent
 CMD_PATH := ./cmd/agent
 BIN_DIR := bin
 BIN_PATH := $(BIN_DIR)/$(APP_NAME)
-VERSION ?= v1.6.0
+VERSION ?= v1.7.0
 IMAGE ?= auren-transfer-agent:$(VERSION)
 
-.PHONY: help tidy fmt test build run serve version clean docker-build compose-up deb apt-repo release release-dry-run
+.PHONY: help tidy fmt test build run serve version clean docker-build compose-up deb apt-repo apt-publish release release-dry-run
 
 help:
 	@echo "Auren Transfer Agent"
@@ -21,7 +21,8 @@ help:
 	@echo "  make docker-build   - build Docker image"
 	@echo "  make compose-up     - start Docker Compose stack"
 	@echo "  make deb            - build Debian package"
-	@echo "  make apt-repo       - build local APT repository skeleton"
+	@echo "  make apt-repo       - build local APT repository"
+	@echo "  make apt-publish    - publish APT repository to S3 using S3_URI"
 	@echo "  make release        - create release archive"
 	@echo "  make release-dry-run - validate release pipeline"
 	@echo "  make clean          - remove build artifacts"
@@ -59,6 +60,9 @@ deb: build
 
 apt-repo: deb
 	./scripts/build-apt-repo.sh
+
+apt-publish: apt-repo
+	./scripts/publish-apt-s3.sh
 
 release:
 	./scripts/release.sh $(VERSION)

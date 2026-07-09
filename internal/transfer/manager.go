@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cesarsousa94/auren-transfer-agent/internal/config"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/mediahub"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/ops"
+	"github.com/auren/auren-transfer-agent/internal/config"
+	"github.com/auren/auren-transfer-agent/internal/mediahub"
+	"github.com/auren/auren-transfer-agent/internal/ops"
 )
 
 // ManagerOptions configures the Media Hub pull worker loop.

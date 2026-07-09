@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/cesarsousa94/auren-transfer-agent/internal/queue"
-	"github.com/cesarsousa94/auren-transfer-agent/internal/worker"
+	"github.com/auren/auren-transfer-agent/internal/queue"
+	"github.com/auren/auren-transfer-agent/internal/worker"
 )
 
 func dispatcherJob(t *testing.T, destination string, maxAttempts int) worker.Job {

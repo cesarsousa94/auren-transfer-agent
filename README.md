@@ -1,36 +1,44 @@
 # Auren Transfer Agent
 
-**Version:** v1.6.0  
+**Version:** v1.7.0  
 **Status:** Production / Operational Hardening
 
 The Auren Transfer Agent is a Go service responsible for executing high-reliability media transfers and serving Media Hub gateway handoff traffic. It receives jobs from Auren Media Hub, resolves complex URLs, downloads media, uploads the result to Auren Storage, returns operation status and can proxy or redirect public streaming sessions without Laravel carrying the video body.
 
 This repository intentionally keeps business decisions outside the Agent. The Agent executes jobs. Auren Media Hub owns all business rules.
 
-## v1.6.0 scope
+## v1.7.0 scope
 
-This delivery adds **Linux Package & Zero-Touch Bootstrap** on top of the v1.5.0 operational hardening baseline. It keeps the Media Hub connector, real transfer executor, Auren Storage production adapter, public gateway runtime and hardening controls, then makes the Agent installable as a durable Debian/Ubuntu service.
+This delivery adds **APT Repository Distribution** on top of the v1.6.0 Linux package/bootstrap baseline. The Agent remains the same production runtime, but the release now includes a static Debian/Ubuntu repository that can be hosted online and consumed with `apt install auren-transfer-agent`.
 
 Added in this version:
 
-- first-class `.deb` package build through `scripts/build-deb.sh`;
-- package layout for `/usr/bin`, `/etc/auren-transfer-agent`, `/var/lib/auren-transfer-agent`, `/var/log/auren-transfer-agent` and `/var/tmp/auren-transfer-agent`;
-- canonical Linux user/group `auren-agent`;
-- systemd unit that runs `auren-transfer-agent serve --config /etc/auren-transfer-agent/agent.yaml`;
-- CLI `bootstrap` command that writes production config, registers the node with Media Hub and persists `node_uuid/node_secret`;
-- CLI `doctor` and `status` commands for install diagnostics;
-- one-line installer script suitable for Media Hub-generated installation commands;
-- APT repository skeleton generator through `scripts/build-apt-repo.sh`;
-- release pipeline output for both ZIP and `.deb`.
+- publishable APT repository layout under `dist/apt`;
+- `Packages`, `Packages.gz`, `Release`, optional `Release.gpg` and optional `InRelease`;
+- optional GPG signing through `APT_GPG_KEY_ID`;
+- AWS S3/CloudFront publishing helper through `scripts/publish-apt-s3.sh`;
+- APT-aware installer flags: `--apt`, `--repo-url`, `--apt-key-url`, `--codename` and `--component`;
+- generated `install-apt.sh` inside the repository root;
+- release artifact `auren-transfer-agent-apt-repo-v1.7.0.tar.gz`;
+- clearer systemd diagnostics for WSL/container lab environments.
 
-Quick install after Media Hub generates a one-time registration token:
+Build the package and repository:
+
+```bash
+./scripts/release.sh v1.7.0
+```
+
+Install from an online APT repository and bootstrap the node:
 
 ```bash
 curl -fsSL https://downloads.auren.app/agent/install.sh | sudo bash -s -- \
-  --media-hub=https://media.example.com \
-  --token=REGISTRATION_TOKEN \
-  --role=hybrid \
-  --region=sa-east-1
+  --apt \
+  --repo-url https://downloads.auren.app/agent/apt \
+  --apt-key-url https://downloads.auren.app/agent/auren-transfer-agent.gpg \
+  --media-hub https://media.example.com \
+  --token REGISTRATION_TOKEN \
+  --role worker \
+  --region sa-east-1
 ```
 
 For gateway mode add `--enable-gateway --public-base-url=https://node1.example.com`.
@@ -65,7 +73,7 @@ The `.deb` package installs the binary as `/usr/bin/auren-transfer-agent` and th
 
 ## Configuration
 
-The agent loads configuration through the Viper contract. The v1.6.0 ZIP is self-contained for offline compilation.
+The agent loads configuration through the Viper contract. The v1.7.0 ZIP is self-contained for offline compilation.
 
 Default search order when `--config` is not provided:
 
@@ -228,8 +236,8 @@ make run
 Expected default output includes one structured JSON startup line followed by the foundation readiness summary:
 
 ```text
-{"agent_id":"...","component":"bootstrap","environment":"local","fingerprint":"...","hostname":"...","hostname_source":"os","level":"info","message":"agent initialized","service":"auren-transfer-agent","status":"production/ready","time":"...","version":"v1.6.0"}
-auren-transfer-agent v1.6.0 initialized
+{"agent_id":"...","component":"bootstrap","environment":"local","fingerprint":"...","hostname":"...","hostname_source":"os","level":"info","message":"agent initialized","service":"auren-transfer-agent","status":"production/ready","time":"...","version":"v1.7.0"}
+auren-transfer-agent v1.7.0 initialized
 status: production-ready
 identity: agent_id=... fingerprint=... algorithm=sha256 persistence=persistent source=created path=data/identity/agent.json
 host: hostname=... source=os raw="..."
@@ -254,7 +262,7 @@ make version
 Expected output:
 
 ```text
-auren-transfer-agent v1.6.0 (production/ready)
+auren-transfer-agent v1.7.0 (production/ready)
 ```
 
 ## Test
@@ -276,12 +284,12 @@ make test
 
 ## Current phase
 
-This repository is currently at **v1.6.0 — Operational Hardening**. EPIC 1 through EPIC 16 remain the production/connector/transfer/storage baseline, and EPIC 17 adds Media Hub public streaming handoff through the Agent.
+This repository is currently at **v1.7.0 — Operational Hardening**. EPIC 1 through EPIC 16 remain the production/connector/transfer/storage baseline, and EPIC 17 adds Media Hub public streaming handoff through the Agent.
 
 
 ## Production deployment
 
-The v1.6.0 ZIP includes the complete EPIC 13 production baseline, EPIC 14 Media Hub connector foundation, EPIC 15 real transfer executor, EPIC 16 Auren Storage production adapter and EPIC 17 Operational Hardening:
+The v1.7.0 ZIP includes the complete EPIC 13 production baseline, EPIC 14 Media Hub connector foundation, EPIC 15 real transfer executor, EPIC 16 Auren Storage production adapter and EPIC 17 Operational Hardening:
 
 - Docker image definition: `docker/Dockerfile`;
 - Docker Compose stack: `docker/docker-compose.yml`;

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cesarsousa94/auren-transfer-agent/internal/worker"
+	"github.com/auren/auren-transfer-agent/internal/worker"
 )
 
 const (

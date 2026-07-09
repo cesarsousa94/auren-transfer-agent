@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/cesarsousa94/auren-transfer-agent/internal/worker"
+	"github.com/auren/auren-transfer-agent/internal/worker"
 )
 
 func testJob(t *testing.T, destination string) worker.Job {

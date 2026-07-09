@@ -1,6 +1,6 @@
-# Linux Package & Zero-Touch Bootstrap — v1.6.0
+# Linux Package & Zero-Touch Bootstrap — v1.7.0
 
-Auren Transfer Agent v1.6.0 turns the Agent into a Debian/Ubuntu-installable service. The package installs a durable systemd runtime, creates the `auren-agent` Linux user, writes canonical directories under `/etc`, `/var/lib`, `/var/log` and `/var/tmp`, and exposes CLI bootstrap commands so a node can register itself against Auren Media Hub using a one-time registration token.
+Auren Transfer Agent v1.7.0 turns the Agent into a Debian/Ubuntu-installable service. The package installs a durable systemd runtime, creates the `auren-agent` Linux user, writes canonical directories under `/etc`, `/var/lib`, `/var/log` and `/var/tmp`, and exposes CLI bootstrap commands so a node can register itself against Auren Media Hub using a one-time registration token.
 
 ## Package layout
 
@@ -44,7 +44,7 @@ curl -fsSL https://downloads.auren.app/agent/install.sh | sudo bash -s -- \
 ## Manual `.deb` install
 
 ```bash
-sudo dpkg -i auren-transfer-agent_1.6.0_amd64.deb
+sudo dpkg -i auren-transfer-agent_1.7.0_amd64.deb
 sudo auren-transfer-agent bootstrap \
   --media-hub=https://media.example.com \
   --token=REGISTRATION_TOKEN \
@@ -97,16 +97,16 @@ auren-transfer-agent --version
 
 ```bash
 make build
-./scripts/build-deb.sh v1.6.0
-./scripts/release.sh v1.6.0
+./scripts/build-deb.sh v1.7.0
+./scripts/release.sh v1.7.0
 ```
 
 Release output includes:
 
 ```text
-dist/auren-transfer-agent-v1.6.0.zip
-dist/auren-transfer-agent_1.6.0_amd64.deb
-dist/auren-transfer-agent_1.6.0_amd64.deb.sha256
+dist/auren-transfer-agent-v1.7.0.zip
+dist/auren-transfer-agent_1.7.0_amd64.deb
+dist/auren-transfer-agent_1.7.0_amd64.deb.sha256
 ```
 
 ## APT repository skeleton

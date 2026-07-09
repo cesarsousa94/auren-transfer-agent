@@ -7,7 +7,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/cesarsousa94/auren-transfer-agent/internal/upload"
+	"github.com/auren/auren-transfer-agent/internal/upload"
 )
 
 const (
