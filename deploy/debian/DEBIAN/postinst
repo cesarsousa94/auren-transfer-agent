@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -e
+USER_NAME="auren-agent"
+GROUP_NAME="auren-agent"
+DATA_DIR="/var/lib/auren-transfer-agent"
+LOG_DIR="/var/log/auren-transfer-agent"
+TMP_DIR="/var/tmp/auren-transfer-agent"
+CONFIG_DIR="/etc/auren-transfer-agent"
+if ! getent group "${GROUP_NAME}" >/dev/null; then
+  addgroup --system "${GROUP_NAME}" >/dev/null
+fi
+if ! id "${USER_NAME}" >/dev/null 2>&1; then
+  adduser --system --home "${DATA_DIR}" --no-create-home --shell /usr/sbin/nologin --ingroup "${GROUP_NAME}" "${USER_NAME}" >/dev/null
+fi
+install -d -m 0750 -o "${USER_NAME}" -g "${GROUP_NAME}" "${DATA_DIR}" "${DATA_DIR}/storage" "${DATA_DIR}/transfer" "${DATA_DIR}/transfer/dead-letter" "${TMP_DIR}" "${TMP_DIR}/downloads" "${LOG_DIR}"
+install -d -m 0755 "${CONFIG_DIR}"
+chown -R "${USER_NAME}:${GROUP_NAME}" "${DATA_DIR}" "${TMP_DIR}" "${LOG_DIR}"
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload || true
+  systemctl enable auren-transfer-agent.service >/dev/null 2>&1 || true
+fi
+cat <<MSG
+Auren Transfer Agent installed.
+Run bootstrap before starting the service:
+  sudo auren-transfer-agent bootstrap --media-hub https://media.example.com --token TOKEN --start-service
+MSG
+exit 0

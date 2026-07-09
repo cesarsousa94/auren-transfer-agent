@@ -1,0 +1,11 @@
+Package: auren-transfer-agent
+Version: 1.6.0
+Section: net
+Priority: optional
+Architecture: amd64
+Maintainer: Auren <ops@auren.app>
+Depends: ca-certificates, adduser, systemd
+Homepage: https://auren.app
+Description: Auren Transfer Agent
+ Execution/data-plane agent for Auren Media Hub. Provides transfer execution,
+ Auren Storage uploads, Media Hub heartbeat/callbacks and optional gateway runtime.

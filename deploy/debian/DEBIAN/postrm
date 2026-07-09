@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -e
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload || true
+fi
+if [ "${1:-}" = "purge" ]; then
+  rm -rf /etc/auren-transfer-agent /var/lib/auren-transfer-agent /var/log/auren-transfer-agent /var/tmp/auren-transfer-agent
+fi
+exit 0

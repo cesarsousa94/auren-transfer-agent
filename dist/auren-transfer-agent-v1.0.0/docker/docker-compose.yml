@@ -1,0 +1,31 @@
+services:
+  auren-transfer-agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: auren-transfer-agent:v1.0.0
+    container_name: auren-transfer-agent
+    restart: unless-stopped
+    environment:
+      AUREN_RUNTIME_ENVIRONMENT: production
+      AUREN_LOGGER_FORMAT: json
+      AUREN_SERVER_ENABLED: "true"
+      AUREN_SERVER_HOST: 0.0.0.0
+      AUREN_SERVER_PORT: "8080"
+      AUREN_QUEUE_DRIVER: memory
+      AUREN_SECURITY_API_KEY_REQUIRED: "false"
+    ports:
+      - "8080:8080"
+    volumes:
+      - auren-transfer-agent-data:/var/lib/auren-transfer-agent
+      - auren-transfer-agent-tmp:/tmp/auren-transfer-agent
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/auren-transfer-agent", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  auren-transfer-agent-data:
+  auren-transfer-agent-tmp:

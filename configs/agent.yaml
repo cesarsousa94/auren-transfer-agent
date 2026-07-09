@@ -1,0 +1,148 @@
+app:
+  name: auren-transfer-agent
+  description: High-reliability media transfer agent
+
+runtime:
+  environment: local
+  data_dir: ./data
+  temp_dir: ./tmp
+
+logger:
+  level: info
+  format: json
+  timestamp: true
+  service: auren-transfer-agent
+
+server:
+  enabled: false
+  host: 0.0.0.0
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 60s
+
+worker:
+  enabled: false
+  concurrency: 1
+  shutdown_timeout: 30s
+
+queue:
+  driver: memory
+  memory_capacity: 100
+  poll_interval: 1s
+  redis_address: redis://localhost:6379
+  redis_stream: auren.transfer.jobs
+  redis_consumer_group: auren-transfer-agents
+  rabbitmq_url: amqp://guest:guest@localhost:5672/
+  rabbitmq_queue: auren.transfer.jobs
+  nats_url: nats://localhost:4222
+  nats_subject: auren.transfer.jobs
+  nats_queue_group: auren-transfer-agents
+
+resolver:
+  default_user_agent: AurenTransferAgent/1.0
+  follow_redirects: true
+  max_redirects: 10
+
+download:
+  temp_dir: ./tmp/downloads
+  connect_timeout: 15s
+  response_header_timeout: 30s
+  idle_timeout: 60s
+  max_retries: 3
+  retry_backoff: 2s
+  chunk_size: 8MiB
+  resume_enabled: true
+  checksum: sha256
+
+upload:
+  driver: local
+  max_retries: 3
+  retry_backoff: 2s
+  multipart_enabled: true
+  part_size: 16MiB
+
+storage:
+  driver: local
+  endpoint: ""
+  bucket: ""
+  api_key: ""
+  region: us-east-1
+  local_path: ./data/storage
+  use_path_style: true
+
+metrics:
+  enabled: false
+  host: 0.0.0.0
+  port: 9090
+  path: /metrics
+
+heartbeat:
+  enabled: false
+  interval: 30s
+  timeout: 10s
+
+security:
+  api_key_required: false
+  api_key: ""
+  api_key_hash: ""
+  token_header: Authorization
+  allow_insecure_http: true
+  jwt_enabled: false
+  jwt_secret: ""
+  jwt_ttl: 15m
+  mtls_enabled: false
+  mtls_required_cn: ""
+  rbac_enabled: false
+  rate_limit_enabled: false
+  rate_limit_per_minute: 60
+  secrets_provider: env
+  secrets_file: ""
+
+media_hub:
+  enabled: false
+  base_url: ""
+  registration_token: ""
+  node_uuid: ""
+  node_secret: ""
+  hmac_enabled: true
+  poll_enabled: false
+  poll_interval: 2s
+  transfer_enabled: false
+  claim_enabled: false
+  claim_interval: 2s
+  progress_interval: 5s
+  control_interval: 10s
+  max_concurrent_jobs: 1
+  accepted_operations: media_remote_download,playlist_m3u_download,remote_download
+  work_dir: ./data/transfer
+  min_bytes: 65536
+  block_html: true
+  gateway_enabled: false
+  gateway_proxy_enabled: true
+  gateway_redirect_enabled: true
+  gateway_heartbeat_interval: 10s
+  gateway_token_ttl: 5m
+  drain_enabled: true
+  drain_file: ./data/transfer/drain
+  backpressure_enabled: true
+  disk_guard_enabled: true
+  disk_min_free_bytes: 1073741824
+  dead_letter_enabled: true
+  dead_letter_dir: ./data/transfer/dead-letter
+  lease_renewal_enabled: true
+  lease_renewal_interval: 30s
+  secret_rotation_enabled: false
+  secret_rotation_interval: 24h
+  heartbeat_interval: 30s
+  metrics_interval: 60s
+  events_flush_interval: 10s
+  role: gateway
+  provider: auren_transfer_agent
+  region: sa-east-1
+  availability_zone: ""
+  public_base_url: ""
+  health_url: ""
+  max_sessions: 500
+  max_egress_mbps: 1000
+  capabilities: transfer,gateway,download,upload,auren_storage,xtream,shui,m3u8,hls,live,movie,series

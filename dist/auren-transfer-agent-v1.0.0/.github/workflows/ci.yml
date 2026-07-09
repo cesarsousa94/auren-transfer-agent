@@ -1,0 +1,29 @@
+name: Auren Transfer Agent CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-build-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+          cache: true
+      - name: Format check
+        run: test -z "$(gofmt -l $(find . -name '*.go' -not -path './vendor/*'))"
+      - name: Test
+        run: go test ./...
+      - name: Build
+        run: make build
+      - name: Version
+        run: ./bin/auren-transfer-agent --version
+      - name: Release archive dry run
+        run: ./scripts/release.sh v1.0.0 --dry-run

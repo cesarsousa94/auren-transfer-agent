@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -e
+if command -v systemctl >/dev/null 2>&1; then
+  if systemctl is-active --quiet auren-transfer-agent.service; then
+    systemctl stop auren-transfer-agent.service || true
+  fi
+fi
+exit 0

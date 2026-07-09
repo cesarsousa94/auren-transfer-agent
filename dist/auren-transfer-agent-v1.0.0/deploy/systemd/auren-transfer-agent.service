@@ -1,0 +1,25 @@
+[Unit]
+Description=Auren Transfer Agent
+Documentation=/opt/auren-transfer-agent/docs/deployment/production.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=auren-transfer
+Group=auren-transfer
+EnvironmentFile=-/etc/auren-transfer-agent/auren-transfer-agent.env
+ExecStart=/opt/auren-transfer-agent/auren-transfer-agent --config /etc/auren-transfer-agent/agent.yaml
+WorkingDirectory=/var/lib/auren-transfer-agent
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=35s
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/auren-transfer-agent /tmp
+
+[Install]
+WantedBy=multi-user.target
