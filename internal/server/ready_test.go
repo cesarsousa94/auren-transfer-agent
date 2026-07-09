@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/auren/auren-transfer-agent/internal/runtime"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/runtime"
 )
 
 func TestReadyHandlerReturnsFoundationPayload(t *testing.T) {

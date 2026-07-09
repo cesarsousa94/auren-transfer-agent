@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/auren/auren-transfer-agent/internal/mediahub"
-	"github.com/auren/auren-transfer-agent/internal/storage"
-	"github.com/auren/auren-transfer-agent/internal/worker"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/mediahub"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/storage"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/worker"
 )
 
 // Handler executes legacy/foundation worker jobs through the real transfer executor.

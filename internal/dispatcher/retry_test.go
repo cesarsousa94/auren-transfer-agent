@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/auren/auren-transfer-agent/internal/worker"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/worker"
 )
 
 func retryTestJob(t *testing.T, maxAttempts int) worker.Job {

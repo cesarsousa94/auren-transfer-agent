@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/auren/auren-transfer-agent/internal/config"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/config"
 )
 
 func TestRequestLoggerEmitsStructuredRequestEvent(t *testing.T) {

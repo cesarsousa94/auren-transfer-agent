@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/auren/auren-transfer-agent/internal/download"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/download"
 )
 
 func testResolverHTTPClient(t *testing.T) *download.HTTPClient {

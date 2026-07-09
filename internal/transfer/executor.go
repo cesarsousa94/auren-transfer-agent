@@ -16,13 +16,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/auren/auren-transfer-agent/internal/config"
-	"github.com/auren/auren-transfer-agent/internal/download"
-	"github.com/auren/auren-transfer-agent/internal/mediahub"
-	"github.com/auren/auren-transfer-agent/internal/ops"
-	"github.com/auren/auren-transfer-agent/internal/resolver"
-	"github.com/auren/auren-transfer-agent/internal/storage"
-	"github.com/auren/auren-transfer-agent/internal/upload"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/config"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/download"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/mediahub"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/ops"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/resolver"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/storage"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/upload"
 )
 
 // ExecutorOptions wires the real transfer executor.

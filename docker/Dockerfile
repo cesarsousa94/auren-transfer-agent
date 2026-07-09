@@ -12,7 +12,7 @@ FROM alpine:3.20
 LABEL org.opencontainers.image.title="Auren Transfer Agent"
 LABEL org.opencontainers.image.description="High-reliability media transfer agent"
 LABEL org.opencontainers.image.version="v1.6.0"
-LABEL org.opencontainers.image.source="https://github.com/auren/auren-transfer-agent"
+LABEL org.opencontainers.image.source="https://github.com/cesarsousa94/auren-transfer-agent"
 RUN apk add --no-cache ca-certificates tzdata \
     && addgroup -S auren \
     && adduser -S -G auren -h /var/lib/auren-transfer-agent auren \

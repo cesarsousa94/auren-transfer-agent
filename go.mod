@@ -1,4 +1,4 @@
-module github.com/auren/auren-transfer-agent
+module github.com/cesarsousa94/auren-transfer-agent
 
 go 1.22
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/auren/auren-transfer-agent/internal/bootstrap"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/bootstrap"
 )
 
 func main() {

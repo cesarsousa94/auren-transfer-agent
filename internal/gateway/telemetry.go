@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/auren/auren-transfer-agent/internal/mediahub"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/mediahub"
 )
 
 func (runtime *Runtime) sendHeartbeat(ctx context.Context, state mediahub.NodeState, resolved mediahub.GatewayResolveResult, record SessionRecord, status int, message string) {

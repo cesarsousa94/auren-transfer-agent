@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/auren/auren-transfer-agent/internal/identity"
-	"github.com/auren/auren-transfer-agent/internal/runtime"
-	"github.com/auren/auren-transfer-agent/internal/worker"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/identity"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/runtime"
+	"github.com/cesarsousa94/auren-transfer-agent/internal/worker"
 )
 
 func testSnapshot(t *testing.T, agentID string, hostname string) identity.Snapshot {
