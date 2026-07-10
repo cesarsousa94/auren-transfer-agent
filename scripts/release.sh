@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Current package baseline: v1.7.0
+# Current package baseline: v1.9.0
 set -Eeuo pipefail
 
 VERSION="${1:-}"
@@ -37,8 +37,9 @@ rsync -a --exclude='.git' --exclude='dist' --exclude='bin' ./ "${ARCHIVE_DIR}/"
 mkdir -p "${ARCHIVE_DIR}/bin"
 cp "bin/${APP_NAME}" "${ARCHIVE_DIR}/bin/${APP_NAME}"
 ./scripts/build-deb.sh "${VERSION}"
-./scripts/build-apt-repo.sh "dist/apt" "dist/*.deb"
+APT_CHANNELS="${APT_CHANNELS:-stable,edge}" ./scripts/build-apt-repo.sh "dist/apt" "dist/*.deb"
 tar -C dist -czf "${APT_TARBALL}" apt
+sha256sum "${APT_TARBALL}" > "${APT_TARBALL}.sha256"
 mkdir -p "${ARCHIVE_DIR}/dist"
 cp "${DEB_PATH}" "${ARCHIVE_DIR}/dist/"
 cp "${DEB_PATH}.sha256" "${ARCHIVE_DIR}/dist/"

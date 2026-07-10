@@ -122,6 +122,12 @@ func DefaultConfig() Config {
 			SecretsProvider:   "env",
 			SecretsFile:       "",
 		},
+		DevUI: DevUIConfig{
+			Enabled:         true,
+			Path:            "/_auren/dev",
+			Retention:       500,
+			RefreshInterval: "2s",
+		},
 		MediaHub: MediaHubConfig{
 			Enabled:                  false,
 			BaseURL:                  "",
@@ -312,5 +318,10 @@ func DefaultValues() map[string]any {
 		"media_hub.max_sessions":               cfg.MediaHub.MaxSessions,
 		"media_hub.max_egress_mbps":            cfg.MediaHub.MaxEgressMbps,
 		"media_hub.capabilities":               cfg.MediaHub.Capabilities,
+
+		"dev_ui.enabled":          cfg.DevUI.Enabled,
+		"dev_ui.path":             cfg.DevUI.Path,
+		"dev_ui.retention":        cfg.DevUI.Retention,
+		"dev_ui.refresh_interval": cfg.DevUI.RefreshInterval,
 	}
 }

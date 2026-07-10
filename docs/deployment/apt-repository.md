@@ -1,160 +1,170 @@
-# APT Repository Distribution — v1.7.0
+# Signed APT Repository Distribution — v1.9.0
 
-Auren Transfer Agent v1.7.0 adds a publishable Debian/Ubuntu APT repository layout. The repository is static, so it can be hosted by S3 + CloudFront, Nginx, Apache, Cloudflare R2, Bunny Storage or any HTTP origin that preserves paths.
+Auren Transfer Agent v1.9.0 makes the online APT repository the official Linux distribution path. The direct `.deb` remains a build artifact, but production installs should use an HTTPS APT repository with a GPG-signed `Release` file and a public `install-apt.sh` bootstrap script.
 
-## Build the package and repository
+## Release artifacts
 
-```bash
-make release VERSION=v1.7.0
-```
-
-This generates:
+Running the release pipeline creates:
 
 ```text
-dist/auren-transfer-agent_1.7.0_amd64.deb
+./scripts/release.sh v1.9.0
+
+dist/auren-transfer-agent-v1.9.0.zip
+dist/auren-transfer-agent_1.9.0_amd64.deb
+dist/auren-transfer-agent-apt-repo-v1.9.0.tar.gz
 dist/apt/
-dist/auren-transfer-agent-apt-repo-v1.7.0.tar.gz
 ```
 
-The APT repository root is `dist/apt`:
+The APT repo contains:
 
 ```text
-dist/apt/
+apt/
+├── pool/main/a/auren-transfer-agent/auren-transfer-agent_1.9.0_amd64.deb
 ├── dists/stable/Release
+├── dists/stable/InRelease                  # when signed
+├── dists/stable/Release.gpg                # when signed
 ├── dists/stable/main/binary-amd64/Packages
 ├── dists/stable/main/binary-amd64/Packages.gz
-├── pool/main/a/auren-transfer-agent/auren-transfer-agent_1.7.0_amd64.deb
+├── dists/edge/...
+├── auren-transfer-agent.gpg                # when signed
+├── auren-transfer-agent.asc                # when signed
+├── install-apt.sh
+├── install.sh
+├── install-command-template.json
 ├── SHA256SUMS
-└── install-apt.sh
+├── CHANNELS
+├── SIGNED
+└── VERSION
 ```
 
-## Unsigned lab repository
+## Build a signed repository
 
-For a private lab or temporary EC2 test, publish `dist/apt` and install with `trusted=yes`:
+Create or choose a GPG key on the release machine, then run:
 
 ```bash
-curl -fsSL https://downloads.example.com/agent/apt/install-apt.sh | sudo \
-  REPO_URL=https://downloads.example.com/agent/apt \
-  bash
+APT_SIGN=true \
+APT_REQUIRE_SIGNED=true \
+APT_GPG_KEY_ID="YOUR_GPG_KEY_ID" \
+APT_CHANNELS="stable,edge" \
+APT_PUBLIC_REPO_URL="https://downloads.seudominio.com/agent/apt" \
+APT_PUBLIC_KEY_URL="https://downloads.seudominio.com/agent/apt/auren-transfer-agent.gpg" \
+./scripts/release.sh v1.9.0
 ```
 
-Or manually:
+For a lab repository only, signing can be skipped:
 
 ```bash
-echo 'deb [trusted=yes] https://downloads.example.com/agent/apt stable main' | \
-  sudo tee /etc/apt/sources.list.d/auren-transfer-agent.list
-sudo apt update
-sudo apt install auren-transfer-agent
+APT_SIGN=false ./scripts/release.sh v1.9.0
 ```
 
-Use this only for controlled tests. Production repositories should be signed.
+Production should use signed repositories.
 
-## Signed production repository
-
-Import or create a GPG signing key on the release machine. Do not commit or ship the private key.
+## Publish to S3 + CloudFront
 
 ```bash
-export APT_GPG_KEY_ID='YOUR_KEY_ID_OR_FINGERPRINT'
-export APT_SIGN=true
-./scripts/build-apt-repo.sh dist/apt 'dist/*.deb'
-```
-
-The script creates:
-
-```text
-dists/stable/InRelease
-dists/stable/Release.gpg
-```
-
-Publish your public key separately, for example:
-
-```text
-https://downloads.example.com/agent/auren-transfer-agent.gpg
-```
-
-Then install on EC2/Ubuntu/Debian:
-
-```bash
-curl -fsSL https://downloads.example.com/agent/auren-transfer-agent.gpg | \
-  sudo gpg --dearmor -o /usr/share/keyrings/auren-transfer-agent.gpg
-
-echo 'deb [signed-by=/usr/share/keyrings/auren-transfer-agent.gpg] https://downloads.example.com/agent/apt stable main' | \
-  sudo tee /etc/apt/sources.list.d/auren-transfer-agent.list
-
-sudo apt update
-sudo apt install auren-transfer-agent
-```
-
-## Publish to AWS S3 + CloudFront
-
-Build the repository:
-
-```bash
-./scripts/release.sh v1.7.0
-```
-
-Publish the static repository:
-
-```bash
-S3_URI=s3://your-download-bucket/agent/apt \
+S3_URI=s3://seu-bucket/agent/apt \
 CLOUDFRONT_DISTRIBUTION_ID=E1234567890 \
 ./scripts/publish-apt-s3.sh
 ```
 
-For a dry-run:
-
-```bash
-DRY_RUN=true S3_URI=s3://your-download-bucket/agent/apt ./scripts/publish-apt-s3.sh
-```
-
-Expected public URL:
+The published URL should expose the repo root:
 
 ```text
-https://downloads.example.com/agent/apt
+https://downloads.seudominio.com/agent/apt
 ```
 
-## One-line install + bootstrap
+## Install from EC2/Ubuntu
 
-After publishing, a test EC2 can be installed and registered like this:
+Signed production install:
 
 ```bash
-curl -fsSL https://downloads.example.com/agent/install.sh | sudo bash -s -- \
-  --apt \
-  --repo-url https://downloads.example.com/agent/apt \
-  --apt-key-url https://downloads.example.com/agent/auren-transfer-agent.gpg \
-  --media-hub https://media.example.com \
-  --token REGISTRATION_TOKEN \
+curl -fsSL https://downloads.seudominio.com/agent/apt/install-apt.sh | sudo bash -s -- \
+  --repo-url https://downloads.seudominio.com/agent/apt \
+  --apt-key-url https://downloads.seudominio.com/agent/apt/auren-transfer-agent.gpg \
+  --media-hub https://media.seudominio.com \
+  --token TOKEN_GERADO_NO_MEDIA_HUB \
   --role worker \
   --region sa-east-1
 ```
 
-For temporary unsigned lab repositories, omit `--apt-key-url`. The installer will use `trusted=yes` and print a warning.
-
-## Post-install commands
+Gateway/hybrid install:
 
 ```bash
-sudo systemctl status auren-transfer-agent
-journalctl -u auren-transfer-agent -f
-auren-transfer-agent status --config /etc/auren-transfer-agent/agent.yaml
-auren-transfer-agent doctor --config /etc/auren-transfer-agent/agent.yaml --online
+curl -fsSL https://downloads.seudominio.com/agent/apt/install-apt.sh | sudo bash -s -- \
+  --repo-url https://downloads.seudominio.com/agent/apt \
+  --apt-key-url https://downloads.seudominio.com/agent/apt/auren-transfer-agent.gpg \
+  --media-hub https://media.seudominio.com \
+  --token TOKEN_GERADO_NO_MEDIA_HUB \
+  --role hybrid \
+  --enable-gateway \
+  --public-base-url https://node1.seudominio.com \
+  --region sa-east-1
 ```
 
-## Upgrade
-
-Once the repository is configured:
+Lab unsigned install:
 
 ```bash
+curl -fsSL https://downloads.seudominio.com/agent/apt/install-apt.sh | sudo bash -s -- \
+  --allow-unsigned \
+  --media-hub https://media.seudominio.com \
+  --token TOKEN_GERADO_NO_MEDIA_HUB
+```
+
+## Raw apt commands
+
+```bash
+curl -fsSL https://downloads.seudominio.com/agent/apt/auren-transfer-agent.gpg | \
+  sudo gpg --dearmor -o /usr/share/keyrings/auren-transfer-agent.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/auren-transfer-agent.gpg] https://downloads.seudominio.com/agent/apt stable main" | \
+  sudo tee /etc/apt/sources.list.d/auren-transfer-agent.list
+
 sudo apt update
-sudo apt install --only-upgrade auren-transfer-agent
-sudo systemctl restart auren-transfer-agent
+sudo apt install auren-transfer-agent
 ```
 
-The package preserves `/etc/auren-transfer-agent/agent.yaml` as a conffile and keeps durable identity under `/var/lib/auren-transfer-agent`.
+Then register the node:
 
-## Production notes
+```bash
+sudo auren-transfer-agent bootstrap \
+  --media-hub https://media.seudominio.com \
+  --token TOKEN_GERADO_NO_MEDIA_HUB \
+  --role worker \
+  --region sa-east-1 \
+  --start-service
+```
 
-- The Agent uses outbound HTTPS to Media Hub for registration, heartbeat, claim, callbacks and metrics.
-- Transfer-only nodes do not need a public inbound URL.
-- Gateway nodes need `public_base_url`, TLS termination and inbound 80/443.
-- Never publish the GPG private key.
-- Prefer signed repositories for any customer or production environment.
+## Media Hub install command integration
+
+The repo includes `install-command-template.json` so Auren Media Hub can render copy/paste commands in Provider Nodes. The template expects these variables:
+
+```text
+{{media_hub_url}}
+{{registration_token}}
+{{role}}
+{{region}}
+```
+
+Operators can generate a command locally too:
+
+```bash
+MEDIA_HUB=https://media.seudominio.com \
+TOKEN=auren-node-xxxx \
+REPO_URL=https://downloads.seudominio.com/agent/apt \
+KEY_URL=https://downloads.seudominio.com/agent/apt/auren-transfer-agent.gpg \
+./scripts/generate-install-command.sh
+```
+
+## Channels
+
+`APT_CHANNELS="stable,edge"` generates both channels with the same package set. In production, publish can be split by release branch: stable for approved releases and edge for canary/test nodes.
+
+## Verification
+
+```bash
+apt-cache policy auren-transfer-agent
+auren-transfer-agent --version
+auren-transfer-agent doctor --config /etc/auren-transfer-agent/agent.yaml
+systemctl status auren-transfer-agent
+journalctl -u auren-transfer-agent -f
+```

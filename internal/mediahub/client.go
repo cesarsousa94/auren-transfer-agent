@@ -27,7 +27,11 @@ type ClientOptions struct {
 	HMACEnabled bool
 	UserAgent   string
 	Now         func() time.Time
+	Trace       RequestTraceFunc
 }
+
+// RequestTraceFunc receives a compact diagnostic trace for outbound Media Hub requests.
+type RequestTraceFunc func(method string, path string, status int, duration time.Duration, bytes int64, err error)
 
 // Client is a small typed client for the Media Hub NodeAgentContractService.
 type Client struct {
@@ -36,6 +40,7 @@ type Client struct {
 	hmacEnabled bool
 	userAgent   string
 	now         func() time.Time
+	trace       RequestTraceFunc
 }
 
 // NewClient creates a validated Media Hub client.
@@ -66,7 +71,7 @@ func NewClient(options ClientOptions) (*Client, error) {
 	if userAgent == "" {
 		userAgent = "AurenTransferAgent"
 	}
-	return &Client{baseURL: parsed, httpClient: client, hmacEnabled: options.HMACEnabled, userAgent: userAgent, now: now}, nil
+	return &Client{baseURL: parsed, httpClient: client, hmacEnabled: options.HMACEnabled, userAgent: userAgent, now: now, trace: options.Trace}, nil
 }
 
 // Register registers a local Agent as a Media Hub edge node using a one-time token.
@@ -224,18 +229,29 @@ func (client *Client) doJSON(ctx context.Context, method string, path string, in
 	if client == nil {
 		return fmt.Errorf("media hub client cannot be nil")
 	}
+	started := time.Now()
+	statusCode := 0
+	responseBytes := int64(0)
+	var traceErr error
+	defer func() {
+		if client.trace != nil {
+			client.trace(method, path, statusCode, time.Since(started), responseBytes, traceErr)
+		}
+	}()
 	endpoint := client.resolve(path)
 	var body []byte
 	var err error
 	if input != nil {
 		body, err = json.Marshal(input)
 		if err != nil {
-			return fmt.Errorf("encode media hub request: %w", err)
+			traceErr = fmt.Errorf("encode media hub request: %w", err)
+			return traceErr
 		}
 	}
 	req, err := http.NewRequestWithContext(ctx, method, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("create media hub request: %w", err)
+		traceErr = fmt.Errorf("create media hub request: %w", err)
+		return traceErr
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", client.userAgent)
@@ -244,27 +260,34 @@ func (client *Client) doJSON(ctx context.Context, method string, path string, in
 	}
 	if authenticate {
 		if err := ApplyNodeAuthentication(req, body, state, client.hmacEnabled, client.now(), ""); err != nil {
-			return err
+			traceErr = err
+			return traceErr
 		}
 	}
 	resp, err := client.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("media hub %s %s failed: %w", method, path, err)
+		traceErr = fmt.Errorf("media hub %s %s failed: %w", method, path, err)
+		return traceErr
 	}
+	statusCode = resp.StatusCode
 	defer resp.Body.Close()
 	limited := io.LimitReader(resp.Body, 4<<20)
 	payload, err := io.ReadAll(limited)
+	responseBytes = int64(len(payload))
 	if err != nil {
-		return fmt.Errorf("read media hub response: %w", err)
+		traceErr = fmt.Errorf("read media hub response: %w", err)
+		return traceErr
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("media hub %s %s returned HTTP %d: %s", method, path, resp.StatusCode, strings.TrimSpace(string(payload)))
+		traceErr = fmt.Errorf("media hub %s %s returned HTTP %d: %s", method, path, resp.StatusCode, strings.TrimSpace(string(payload)))
+		return traceErr
 	}
 	if output == nil || len(bytes.TrimSpace(payload)) == 0 {
 		return nil
 	}
 	if err := json.Unmarshal(payload, output); err != nil {
-		return fmt.Errorf("decode media hub response: %w", err)
+		traceErr = fmt.Errorf("decode media hub response: %w", err)
+		return traceErr
 	}
 	return nil
 }

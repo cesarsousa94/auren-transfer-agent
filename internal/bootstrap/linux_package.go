@@ -180,6 +180,9 @@ func runDoctor(args []string) error {
 		}
 		if *online {
 			checks = append(checks, httpCheck("media_hub", strings.TrimRight(cfg.MediaHub.BaseURL, "/")+"/health"))
+			if cfg.Server.Enabled && cfg.DevUI.Enabled {
+				checks = append(checks, httpCheck("dev_ui", "http://127.0.0.1:"+strconv.Itoa(cfg.Server.Port)+strings.TrimRight(cfg.DevUI.Path, "/")+"/api/snapshot"))
+			}
 		}
 	} else {
 		checks = append(checks, warnLine("media_hub", "disabled"))
@@ -223,6 +226,7 @@ func runStatus(args []string) error {
 	fmt.Fprintf(os.Stdout, "config: %s\n", *configPath)
 	fmt.Fprintf(os.Stdout, "server: enabled=%t address=%s\n", cfg.Server.Enabled, cfg.ServerAddress())
 	fmt.Fprintf(os.Stdout, "media-hub: enabled=%t base_url=%s role=%s transfer=%t gateway=%t\n", cfg.MediaHub.Enabled, cfg.MediaHub.BaseURL, cfg.MediaHub.Role, cfg.MediaHub.TransferEnabled, cfg.MediaHub.GatewayEnabled)
+	fmt.Fprintf(os.Stdout, "dev-ui: enabled=%t metrics=http://127.0.0.1:%d%s/metrics requests=http://127.0.0.1:%d%s/requests\n", cfg.DevUI.Enabled, cfg.Server.Port, strings.TrimRight(cfg.DevUI.Path, "/"), cfg.Server.Port, strings.TrimRight(cfg.DevUI.Path, "/"))
 	statePath := mediahub.DefaultStatePath(cfg.Runtime.DataDir)
 	if state, err := mediahub.NewStateStore(statePath).Load(); err == nil {
 		fmt.Fprintf(os.Stdout, "node: uuid=%s config_version=%s registered_at=%s state=%s\n", state.NodeUUID, state.ConfigVersion, state.RegisteredAt.Format(time.RFC3339), statePath)
@@ -277,6 +281,10 @@ func bootstrapConfig(options bootstrapOptions) (config.Config, error) {
 	cfg.Server.Enabled = true
 	cfg.Server.Host = options.ServerHost
 	cfg.Server.Port = options.ServerPort
+	cfg.DevUI.Enabled = true
+	cfg.DevUI.Path = "/_auren/dev"
+	cfg.DevUI.Retention = 1000
+	cfg.DevUI.RefreshInterval = "2s"
 	cfg.Worker.Enabled = true
 	cfg.Worker.Concurrency = maxInt(1, options.MaxConcurrentJobs)
 	cfg.Download.TempDir = filepath.Join(linuxDefaultTempDir, "downloads")
@@ -482,6 +490,11 @@ func renderAgentYAML(cfg config.Config) string {
 	line("  rate_limit_per_minute: %d", cfg.Security.RateLimitPerMin)
 	line("  secrets_provider: %q", cfg.Security.SecretsProvider)
 	line("  secrets_file: %q", cfg.Security.SecretsFile)
+	line("dev_ui:")
+	line("  enabled: %t", cfg.DevUI.Enabled)
+	line("  path: %q", cfg.DevUI.Path)
+	line("  retention: %d", cfg.DevUI.Retention)
+	line("  refresh_interval: %q", cfg.DevUI.RefreshInterval)
 	line("media_hub:")
 	line("  enabled: %t", cfg.MediaHub.Enabled)
 	line("  base_url: %q", cfg.MediaHub.BaseURL)

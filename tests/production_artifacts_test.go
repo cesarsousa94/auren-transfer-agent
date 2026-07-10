@@ -24,9 +24,12 @@ func TestProductionArtifactsExist(t *testing.T) {
 		"scripts/build-deb.sh",
 		"scripts/build-apt-repo.sh",
 		"scripts/publish-apt-s3.sh",
+		"scripts/export-apt-gpg-key.sh",
+		"scripts/generate-install-command.sh",
 		"docs/deployment/production.md",
 		"docs/deployment/linux-package-bootstrap.md",
 		"docs/deployment/apt-repository.md",
+		"docs/deployment/media-hub-install-command.md",
 	}
 
 	for _, file := range files {
@@ -50,8 +53,11 @@ func TestProductionArtifactsReferenceVersion(t *testing.T) {
 		"docs/deployment/production.md",
 		"docs/deployment/linux-package-bootstrap.md",
 		"docs/deployment/apt-repository.md",
+		"docs/deployment/media-hub-install-command.md",
 		"scripts/release.sh",
 		"scripts/build-deb.sh",
+		"scripts/export-apt-gpg-key.sh",
+		"scripts/generate-install-command.sh",
 	}
 
 	for _, file := range files {
@@ -59,8 +65,8 @@ func TestProductionArtifactsReferenceVersion(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", file, err)
 		}
-		if !strings.Contains(string(content), "v1.7.0") && !strings.Contains(string(content), "1.7.0") {
-			t.Fatalf("expected %s to reference v1.7.0", file)
+		if !strings.Contains(string(content), "v1.9.0") && !strings.Contains(string(content), "1.9.0") {
+			t.Fatalf("expected %s to reference v1.9.0", file)
 		}
 	}
 }
@@ -75,6 +81,8 @@ func TestProductionScriptsAreExecutable(t *testing.T) {
 		"scripts/build-deb.sh",
 		"scripts/build-apt-repo.sh",
 		"scripts/publish-apt-s3.sh",
+		"scripts/export-apt-gpg-key.sh",
+		"scripts/generate-install-command.sh",
 	}
 
 	for _, file := range files {

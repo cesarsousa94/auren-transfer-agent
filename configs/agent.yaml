@@ -146,3 +146,10 @@ media_hub:
   max_sessions: 500
   max_egress_mbps: 1000
   capabilities: transfer,gateway,download,upload,auren_storage,xtream,shui,m3u8,hls,live,movie,series
+
+
+dev_ui:
+  enabled: true
+  path: /_auren/dev
+  retention: 500
+  refresh_interval: 2s

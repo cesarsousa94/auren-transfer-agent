@@ -35,6 +35,7 @@ type Config struct {
 	Heartbeat HeartbeatConfig `mapstructure:"heartbeat"`
 	Security  SecurityConfig  `mapstructure:"security"`
 	MediaHub  MediaHubConfig  `mapstructure:"media_hub"`
+	DevUI    DevUIConfig    `mapstructure:"dev_ui"`
 }
 
 // AppConfig contains process identity settings used by diagnostics.
@@ -276,4 +277,13 @@ func registerEnvironmentOverrides(reader *viper.Viper) {
 	reader.SetEnvPrefix(DefaultEnvPrefix)
 	reader.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	reader.AutomaticEnv()
+}
+
+
+// DevUIConfig controls the lightweight local development console exposed by the Agent.
+type DevUIConfig struct {
+	Enabled         bool   `mapstructure:"enabled"`
+	Path            string `mapstructure:"path"`
+	Retention        int    `mapstructure:"retention"`
+	RefreshInterval string `mapstructure:"refresh_interval"`
 }

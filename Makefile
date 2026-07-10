@@ -2,7 +2,7 @@ APP_NAME := auren-transfer-agent
 CMD_PATH := ./cmd/agent
 BIN_DIR := bin
 BIN_PATH := $(BIN_DIR)/$(APP_NAME)
-VERSION ?= v1.7.0
+VERSION ?= v1.9.0
 IMAGE ?= auren-transfer-agent:$(VERSION)
 
 .PHONY: help tidy fmt test build run serve version clean docker-build compose-up deb apt-repo apt-publish release release-dry-run

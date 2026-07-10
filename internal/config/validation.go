@@ -132,6 +132,12 @@ func Validate(cfg Config) error {
 		validator.requiredString("security.secrets_file", cfg.Security.SecretsFile)
 	}
 
+	if cfg.DevUI.Enabled {
+		validator.path("dev_ui.path", cfg.DevUI.Path)
+		validator.positiveInt("dev_ui.retention", cfg.DevUI.Retention)
+		validator.duration("dev_ui.refresh_interval", cfg.DevUI.RefreshInterval)
+	}
+
 	if cfg.MediaHub.Enabled {
 		validator.requiredString("media_hub.base_url", cfg.MediaHub.BaseURL)
 		validator.duration("media_hub.poll_interval", cfg.MediaHub.PollInterval)

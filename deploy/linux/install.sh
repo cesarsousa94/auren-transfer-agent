@@ -2,12 +2,13 @@
 set -Eeuo pipefail
 
 APP_NAME="auren-transfer-agent"
-VERSION="${VERSION:-v1.7.0}"
-DOWNLOAD_BASE="${DOWNLOAD_BASE:-https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent}"
-APT_REPO_URL="${APT_REPO_URL:-https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent/apt}"
+VERSION="${VERSION:-v1.9.0}"
+DOWNLOAD_BASE="${DOWNLOAD_BASE:-https://downloads.auren.app/agent}"
+APT_REPO_URL="${APT_REPO_URL:-https://downloads.auren.app/agent/apt}"
 APT_CODENAME="${APT_CODENAME:-stable}"
 APT_COMPONENT="${APT_COMPONENT:-main}"
-APT_KEY_URL="${APT_KEY_URL:-}"
+APT_KEY_URL="${APT_KEY_URL:-https://downloads.auren.app/agent/apt/auren-transfer-agent.gpg}"
+ALLOW_UNSIGNED="false"
 INSTALL_METHOD="auto"
 DEB_PATH=""
 MEDIA_HUB=""
@@ -29,10 +30,11 @@ Install source:
   --apt                         install from APT repository
   --repo-url URL                APT repository root URL, default: ${APT_REPO_URL}
   --apt-key-url URL             public GPG key URL for signed repository
+  --allow-unsigned              allow trusted=yes lab install without GPG key
   --codename NAME               APT codename/channel, default: ${APT_CODENAME}
   --component NAME              APT component, default: ${APT_COMPONENT}
   --deb PATH                    install a local .deb instead of downloading
-  --version v1.7.0              release version to download in direct .deb mode
+  --version v1.9.0              release version to download in direct .deb mode
 
 Bootstrap:
   --media-hub URL               Auren Media Hub URL
@@ -52,6 +54,7 @@ while [[ $# -gt 0 ]]; do
     --apt) INSTALL_METHOD="apt"; shift ;;
     --repo-url) APT_REPO_URL="${2:-}"; INSTALL_METHOD="apt"; shift 2 ;;
     --apt-key-url|--gpg-key-url) APT_KEY_URL="${2:-}"; shift 2 ;;
+    --allow-unsigned) ALLOW_UNSIGNED="true"; shift ;;
     --codename|--channel) APT_CODENAME="${2:-}"; shift 2 ;;
     --component) APT_COMPONENT="${2:-}"; shift 2 ;;
     --deb) DEB_PATH="${2:-}"; INSTALL_METHOD="deb"; shift 2 ;;
@@ -97,11 +100,11 @@ install_prerequisites() {
 
 install_from_apt() {
   install_prerequisites
-  if [[ -n "${APT_KEY_URL}" ]]; then
+  if [[ "${ALLOW_UNSIGNED}" != "true" ]]; then
     curl -fsSL "${APT_KEY_URL}" | gpg --dearmor -o /usr/share/keyrings/auren-transfer-agent.gpg
     echo "deb [signed-by=/usr/share/keyrings/auren-transfer-agent.gpg] ${APT_REPO_URL} ${APT_CODENAME} ${APT_COMPONENT}" > /etc/apt/sources.list.d/auren-transfer-agent.list
   else
-    echo "WARN: --apt-key-url was not provided; using trusted=yes. Use only for lab/private repositories." >&2
+    echo "WARN: --allow-unsigned enabled; using trusted=yes. Use only for lab/private repositories." >&2
     echo "deb [trusted=yes] ${APT_REPO_URL} ${APT_CODENAME} ${APT_COMPONENT}" > /etc/apt/sources.list.d/auren-transfer-agent.list
   fi
   apt-get update -y

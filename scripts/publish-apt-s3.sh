@@ -5,8 +5,9 @@ REPO_DIR="${REPO_DIR:-dist/apt}"
 S3_URI="${S3_URI:-}"
 CLOUDFRONT_DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-}"
 DRY_RUN="${DRY_RUN:-false}"
-CACHE_CONTROL_INDEX="max-age=60, public"
-CACHE_CONTROL_POOL="max-age=31536000, public, immutable"
+CACHE_CONTROL_INDEX="${CACHE_CONTROL_INDEX:-max-age=60, public}"
+CACHE_CONTROL_POOL="${CACHE_CONTROL_POOL:-max-age=31536000, public, immutable}"
+INVALIDATION_PATHS="${INVALIDATION_PATHS:-/agent/apt/dists/* /agent/apt/install-apt.sh /agent/apt/install.sh /agent/apt/SHA256SUMS /agent/apt/*.gpg /agent/apt/*.asc /agent/apt/install-command-template.json}"
 
 usage() {
   cat <<USAGE
@@ -18,6 +19,8 @@ Environment:
   S3_URI=s3://bucket/agent/apt              required
   CLOUDFRONT_DISTRIBUTION_ID=E123          optional invalidation
   DRY_RUN=true                             show aws sync commands
+  CACHE_CONTROL_INDEX='max-age=60, public'
+  CACHE_CONTROL_POOL='max-age=31536000, public, immutable'
 USAGE
 }
 
@@ -50,11 +53,24 @@ run() {
 
 run aws s3 sync "${REPO_DIR}/pool" "${S3_URI%/}/pool" --delete --cache-control "${CACHE_CONTROL_POOL}"
 run aws s3 sync "${REPO_DIR}/dists" "${S3_URI%/}/dists" --delete --cache-control "${CACHE_CONTROL_INDEX}"
-run aws s3 cp "${REPO_DIR}/install-apt.sh" "${S3_URI%/}/install-apt.sh" --content-type "text/x-shellscript" --cache-control "${CACHE_CONTROL_INDEX}"
-run aws s3 cp "${REPO_DIR}/SHA256SUMS" "${S3_URI%/}/SHA256SUMS" --content-type "text/plain" --cache-control "${CACHE_CONTROL_INDEX}"
+
+for file in install-apt.sh install.sh SHA256SUMS PACKAGE_NAME VERSION CHANNELS SIGNED install-command-template.json auren-transfer-agent.gpg auren-transfer-agent.asc; do
+  if [[ -f "${REPO_DIR}/${file}" ]]; then
+    content_type="text/plain"
+    case "${file}" in
+      *.sh) content_type="text/x-shellscript" ;;
+      *.json) content_type="application/json" ;;
+      *.gpg) content_type="application/octet-stream" ;;
+      *.asc) content_type="application/pgp-keys" ;;
+    esac
+    run aws s3 cp "${REPO_DIR}/${file}" "${S3_URI%/}/${file}" --content-type "${content_type}" --cache-control "${CACHE_CONTROL_INDEX}"
+  fi
+done
 
 if [[ -n "${CLOUDFRONT_DISTRIBUTION_ID}" ]]; then
-  run aws cloudfront create-invalidation --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" --paths "/agent/apt/dists/*" "/agent/apt/install-apt.sh" "/agent/apt/SHA256SUMS"
+  # shellcheck disable=SC2086
+  run aws cloudfront create-invalidation --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" --paths ${INVALIDATION_PATHS}
 fi
 
 echo "APT repository published to ${S3_URI}"
+echo "Install script: ${S3_URI%/}/install-apt.sh"

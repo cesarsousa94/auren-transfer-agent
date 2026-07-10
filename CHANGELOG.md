@@ -1,6 +1,20 @@
 # Changelog
 
-## [v1.7.0] - 2026-07-09
+## [v1.9.0] - 2026-07-09
+
+### Added
+- Added Local Dev Console for Agent development diagnostics.
+- Added metrics page at `/_auren/dev/metrics` with runtime, Media Hub, transfer, gateway, queue, hardening and request counters.
+- Added request tracing page at `/_auren/dev/requests` for inbound Agent requests and outbound Media Hub calls.
+- Added JSON endpoints `/_auren/dev/api/snapshot` and `/_auren/dev/api/requests` for lightweight polling.
+- Added bounded request recorder with retention controls and outbound Media Hub HTTP tracing hook.
+- Added `dev_ui` configuration section and bootstrap defaults for production Linux installs.
+
+### Changed
+- `doctor --online` now also checks the local Dev Console endpoint when enabled.
+- Startup diagnostics print Dev Console URLs when the HTTP server is enabled.
+
+## [v1.9.0] - 2026-07-09
 
 ### Added
 
@@ -14,7 +28,7 @@
 
 ### Changed
 
-- Release pipeline now generates ZIP, `.deb` and `auren-transfer-agent-apt-repo-v1.7.0.tar.gz`.
+- Release pipeline now generates ZIP, `.deb` and `auren-transfer-agent-apt-repo-v1.9.0.tar.gz`.
 - Bootstrap no longer fails the full registration flow when `--start-service` is used in an environment where `systemctl` exists but PID 1 is not systemd.
 - `doctor` and `status` now make systemd manageability clearer for WSL/container lab environments.
 
@@ -70,7 +84,7 @@
 ### Notes
 
 - This version expects the Media Hub side to expose the 47.15/47.16 transfer-agent claim/callback endpoints.
-- Public gateway runtime remains reserved for v1.7.0.
+- Public gateway runtime remains reserved for v1.9.0.
 - Full production multipart Auren Storage adapter remains reserved for v1.3.0.
 
 ## [v1.1.0] - 2026-07-09
@@ -86,7 +100,7 @@
 ### Notes
 
 - Real transfer execution remains intentionally unchanged and still uses the existing noop worker foundation. Download/upload offload is reserved for v1.2.0.
-- Public gateway runtime remains reserved for v1.7.0.
+- Public gateway runtime remains reserved for v1.9.0.
 
 ## [v1.0.0] - 2026-07-09
 

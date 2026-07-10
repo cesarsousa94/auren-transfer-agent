@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 APP_NAME="auren-transfer-agent"
-VERSION="${1:-v1.7.0}"
+VERSION="${1:-v1.9.0}"
 ARCH="${DEB_ARCH:-amd64}"
 DIST_DIR="${DIST_DIR:-dist}"
 BINARY="${BINARY:-bin/${APP_NAME}}"
@@ -11,7 +11,7 @@ ROOT="${DIST_DIR}/deb/${APP_NAME}_${PACKAGE_VERSION}_${ARCH}"
 DEB_PATH="${DIST_DIR}/${APP_NAME}_${PACKAGE_VERSION}_${ARCH}.deb"
 
 if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "version must look like v1.7.0" >&2
+  echo "version must look like v1.9.0" >&2
   exit 1
 fi
 if [[ ! -x "${BINARY}" ]]; then
@@ -38,9 +38,9 @@ install -m 0644 "deploy/systemd/${APP_NAME}.service" "${ROOT}/lib/systemd/system
 install -m 0640 "configs/agent.yaml" "${ROOT}/etc/${APP_NAME}/agent.yaml"
 install -m 0640 "deploy/systemd/${APP_NAME}.env.example" "${ROOT}/etc/${APP_NAME}/${APP_NAME}.env"
 install -m 0644 "README.md" "CHANGELOG.md" "ROADMAP.md" "${ROOT}/usr/share/doc/${APP_NAME}/"
-install -m 0644 "docs/deployment/linux-package-bootstrap.md" "docs/deployment/production.md" "docs/deployment/apt-repository.md" "${ROOT}/usr/share/doc/${APP_NAME}/"
+install -m 0644 "docs/deployment/linux-package-bootstrap.md" "docs/deployment/production.md" "docs/deployment/apt-repository.md" "docs/deployment/media-hub-install-command.md" "${ROOT}/usr/share/doc/${APP_NAME}/"
 install -m 0755 "deploy/linux/install.sh" "${ROOT}/usr/share/${APP_NAME}/scripts/install.sh"
-install -m 0755 "scripts/build-apt-repo.sh" "scripts/publish-apt-s3.sh" "${ROOT}/usr/share/${APP_NAME}/scripts/"
+install -m 0755 "scripts/build-apt-repo.sh" "scripts/publish-apt-s3.sh" "scripts/export-apt-gpg-key.sh" "scripts/generate-install-command.sh" "${ROOT}/usr/share/${APP_NAME}/scripts/"
 
 cp deploy/debian/DEBIAN/postinst "${ROOT}/DEBIAN/postinst"
 cp deploy/debian/DEBIAN/prerm "${ROOT}/DEBIAN/prerm"

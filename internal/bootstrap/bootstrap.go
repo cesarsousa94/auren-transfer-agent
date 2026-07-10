@@ -13,6 +13,7 @@ import (
 
 	"github.com/auren/auren-transfer-agent/internal/cluster"
 	"github.com/auren/auren-transfer-agent/internal/config"
+	"github.com/auren/auren-transfer-agent/internal/devui"
 	"github.com/auren/auren-transfer-agent/internal/dispatcher"
 	"github.com/auren/auren-transfer-agent/internal/download"
 	"github.com/auren/auren-transfer-agent/internal/gateway"
@@ -37,7 +38,7 @@ import (
 
 // Run starts the Auren Transfer Agent foundation executable.
 //
-// v1.7.0 keeps the production runtime and adds Linux package/bootstrap commands.
+// v1.9.0 keeps the production runtime and adds the local Dev Console.
 func Run(args []string) error {
 	if len(args) > 0 {
 		switch strings.TrimSpace(args[0]) {
@@ -118,6 +119,7 @@ func runServe(args []string) error {
 		return err
 	}
 	downloadMetricsRecorder := download.NewMemoryMetricsRecorder()
+	devUIRecorder := devui.NewRecorder(cfg.DevUI.Retention)
 	uploadPartSize, err := upload.ParsePartSize(cfg.Upload.PartSize)
 	if err != nil {
 		return err
@@ -168,7 +170,7 @@ func runServe(args []string) error {
 	var mediaHubState mediahub.NodeState
 	var mediaHubClient *mediahub.Client
 	if cfg.MediaHub.Enabled {
-		mediaHubClient, err = mediahub.NewClient(mediahub.ClientOptions{BaseURL: cfg.MediaHub.BaseURL, HMACEnabled: cfg.MediaHub.HMACEnabled, UserAgent: runtime.AppName + "/" + runtime.Version})
+		mediaHubClient, err = mediahub.NewClient(mediahub.ClientOptions{BaseURL: cfg.MediaHub.BaseURL, HMACEnabled: cfg.MediaHub.HMACEnabled, UserAgent: runtime.AppName + "/" + runtime.Version, Trace: devUIRecorder.RecordOutbound})
 		if err != nil {
 			return err
 		}
@@ -343,6 +345,31 @@ func runServe(args []string) error {
 	metricsAPIOptions := server.MetricsAPIOptions{Info: runtime.Info(), Heartbeat: heartbeatRecord, Queue: jobQueue, DownloadMetrics: downloadMetricsRecorder}
 	eventsAPIOptions := server.EventsAPIOptions{Info: runtime.Info(), Recorder: eventRecorder, MaxEvents: 100}
 	observabilityOptions := server.ObservabilityOptions{Info: runtime.Info(), Heartbeat: heartbeatRecord, Queue: jobQueue, DownloadMetrics: downloadMetricsRecorder, Events: eventRecorder, Traces: traceRecorder, Audit: auditRecorder, Logs: centralLogSink, PrometheusPath: cfg.Metrics.Path, Authenticator: authenticator}
+	devUIOptions := devui.Options{
+		Config:   devui.Config{Enabled: cfg.DevUI.Enabled, Path: cfg.DevUI.Path, Retention: cfg.DevUI.Retention, RefreshInterval: cfg.DevUI.RefreshInterval},
+		Recorder: devUIRecorder,
+		Snapshot: func() devui.MetricsSnapshot {
+			transferStats := transferExecutor.Stats()
+			gatewayStats := gatewayTracker.Stats()
+			state := mediaHubState
+			if mediaHubConnector != nil {
+				state = mediaHubConnector.State()
+			}
+			opsDecision := opsRuntime.CanClaim(ops.ClaimSnapshot{ActiveJobs: transferStats.ActiveJobs, MaxConcurrentJobs: transferStats.MaxConcurrentJobs, ActiveSessions: gatewayStats.ActiveSessions, MaxSessions: cfg.MediaHub.MaxSessions, CurrentEgressMbps: gatewayStats.CurrentEgressBps / 125000, MaxEgressMbps: cfg.MediaHub.MaxEgressMbps, WorkDir: cfg.MediaHub.WorkDir})
+			return devui.MetricsSnapshot{
+				GeneratedAt:     time.Now().UTC(),
+				Runtime:         runtime.Info(),
+				MediaHub:        map[string]any{"enabled": cfg.MediaHub.Enabled, "base_url": cfg.MediaHub.BaseURL, "node_uuid": state.NodeUUID, "role": cfg.MediaHub.Role, "region": cfg.MediaHub.Region, "capabilities": cfg.MediaHub.Capabilities},
+				Transfer:        map[string]any{"enabled": cfg.MediaHub.TransferEnabled, "claim_enabled": cfg.MediaHub.ClaimEnabled, "work_dir": cfg.MediaHub.WorkDir, "max_concurrent_jobs": transferStats.MaxConcurrentJobs, "active_jobs": transferStats.ActiveJobs, "completed_jobs": transferStats.CompletedJobs, "failed_jobs": transferStats.FailedJobs, "accepted_operations": cfg.MediaHub.AcceptedOperations},
+				Gateway:         map[string]any{"enabled": cfg.MediaHub.GatewayEnabled, "proxy_enabled": cfg.MediaHub.GatewayProxyEnabled, "redirect_enabled": cfg.MediaHub.GatewayRedirectEnabled, "public_base_url": cfg.MediaHub.PublicBaseURL, "max_sessions": cfg.MediaHub.MaxSessions, "active_sessions": gatewayStats.ActiveSessions, "bytes_sent": gatewayStats.BytesSent, "current_egress_mbps": gatewayStats.CurrentEgressBps / 125000},
+				Queue:           map[string]any{"driver": cfg.Queue.Driver, "length": jobQueue.Len(), "capacity": jobQueue.Capacity()},
+				Download:        downloadMetricsRecorder.Summary(),
+				Hardening:       map[string]any{"allowed": opsDecision.Allowed, "reason": opsDecision.Reason, "drain_enabled": cfg.MediaHub.DrainEnabled, "backpressure_enabled": cfg.MediaHub.BackpressureEnabled, "disk_guard_enabled": cfg.MediaHub.DiskGuardEnabled},
+				RequestCounters: devUIRecorder.Counters(),
+				RecentRequests:  devUIRecorder.Snapshot(25),
+			}
+		},
+	}
 
 	if cfg.MediaHub.Enabled {
 		mediaHubConnector, err = mediahub.NewConnector(mediahub.ConnectorOptions{
@@ -384,6 +411,9 @@ func runServe(args []string) error {
 	routes = append(routes, server.CommunicationRoutes(communicationOptions)...)
 	routes = append(routes, server.TelemetryRoutes(metricsAPIOptions, eventsAPIOptions, authenticator)...)
 	routes = append(routes, server.ObservabilityRoutes(observabilityOptions)...)
+	if cfg.DevUI.Enabled {
+		routes = append(routes, devui.Routes(devUIOptions)...)
+	}
 	if gatewayRuntime != nil {
 		routes = append(routes, gatewayRuntime.Routes()...)
 	}
@@ -391,7 +421,11 @@ func runServe(args []string) error {
 	if err != nil {
 		return err
 	}
-	middlewareRegistry, err := server.DefaultMiddlewareRegistry(server.MiddlewareOptions{Logger: log, RequestLogging: true, RecoverPanics: true})
+	extraMiddlewares := []server.MiddlewareDefinition{}
+	if cfg.DevUI.Enabled {
+		extraMiddlewares = append(extraMiddlewares, server.MiddlewareDefinition{Name: "devui_request_recorder", Handler: devUIRecorder.Middleware})
+	}
+	middlewareRegistry, err := server.DefaultMiddlewareRegistry(server.MiddlewareOptions{Logger: log, RequestLogging: true, RecoverPanics: true, Middlewares: extraMiddlewares})
 	if err != nil {
 		return err
 	}
@@ -416,6 +450,11 @@ func runServe(args []string) error {
 		fmt.Fprintf(os.Stdout, "media-hub: enabled=true base_url=%s node_uuid=%s state_path=%s role=%s provider=%s region=%s capabilities=%v hmac=%t heartbeat_interval=%s metrics_interval=%s events_interval=%s poll_enabled=%t poll_interval=%s\n", cfg.MediaHub.BaseURL, mediaHubState.NodeUUID, mediahub.DefaultStatePath(cfg.Runtime.DataDir), cfg.MediaHub.Role, cfg.MediaHub.Provider, cfg.MediaHub.Region, cfg.MediaHub.Capabilities, cfg.MediaHub.HMACEnabled, cfg.MediaHub.HeartbeatInterval, cfg.MediaHub.MetricsInterval, cfg.MediaHub.EventsFlushInterval, cfg.MediaHub.PollEnabled, cfg.MediaHub.PollInterval)
 	} else {
 		fmt.Fprintln(os.Stdout, "media-hub: enabled=false")
+	}
+	if cfg.DevUI.Enabled {
+		fmt.Fprintf(os.Stdout, "dev-ui: enabled=true path=%s metrics=%s requests=%s retention=%d refresh_interval=%s\n", cfg.DevUI.Path, strings.TrimRight(cfg.DevUI.Path, "/")+"/metrics", strings.TrimRight(cfg.DevUI.Path, "/")+"/requests", cfg.DevUI.Retention, cfg.DevUI.RefreshInterval)
+	} else {
+		fmt.Fprintln(os.Stdout, "dev-ui: enabled=false")
 	}
 	gatewayStats := gatewayTracker.Stats()
 	fmt.Fprintf(os.Stdout, "gateway-runtime: enabled=%t path=%s public_base_url=%s proxy=%t redirect=%t active_sessions=%d current_egress_bps=%d bytes_sent=%d heartbeat_interval=%s handler=%s\n", cfg.MediaHub.GatewayEnabled, gateway.GatewayPathPattern, cfg.MediaHub.PublicBaseURL, cfg.MediaHub.GatewayProxyEnabled, cfg.MediaHub.GatewayRedirectEnabled, gatewayStats.ActiveSessions, gatewayStats.CurrentEgressBps, gatewayStats.BytesSent, cfg.MediaHub.GatewayHeartbeatInterval, gateway.RuntimeName)
@@ -487,7 +526,7 @@ func printHelp(out io.Writer) {
 	fmt.Fprintln(out, "  auren-transfer-agent status [--config /etc/auren-transfer-agent/agent.yaml]")
 	fmt.Fprintln(out, "  auren-transfer-agent [--config ./configs/agent.yaml] [--version] [--help]")
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Production v1.7.0 supports validated configuration, logging, HTTP APIs, identity, worker engine contracts, real transfer execution, Auren Storage v1 multipart production uploads, public Gateway Runtime, operational hardening, Debian/Ubuntu packaging, systemd persistence and zero-touch Media Hub bootstrap.")
+	fmt.Fprintln(out, "Production v1.9.0 supports validated configuration, logging, HTTP APIs, identity, worker engine contracts, real transfer execution, Auren Storage v1 multipart production uploads, public Gateway Runtime, operational hardening, Debian/Ubuntu packaging, signed APT distribution and the local Dev Console for metrics and request tracing.")
 }
 
 func rateLimitValue(enabled bool, configured int) int {
