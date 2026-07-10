@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -35,7 +37,7 @@ type Config struct {
 	Heartbeat HeartbeatConfig `mapstructure:"heartbeat"`
 	Security  SecurityConfig  `mapstructure:"security"`
 	MediaHub  MediaHubConfig  `mapstructure:"media_hub"`
-	DevUI    DevUIConfig    `mapstructure:"dev_ui"`
+	DevUI     DevUIConfig     `mapstructure:"dev_ui"`
 }
 
 // AppConfig contains process identity settings used by diagnostics.
@@ -122,13 +124,17 @@ type UploadConfig struct {
 
 // StorageConfig contains the future Auren Storage adapter settings.
 type StorageConfig struct {
-	Driver       string `mapstructure:"driver"`
-	Endpoint     string `mapstructure:"endpoint"`
-	Bucket       string `mapstructure:"bucket"`
-	APIKey       string `mapstructure:"api_key"`
-	Region       string `mapstructure:"region"`
-	LocalPath    string `mapstructure:"local_path"`
-	UsePathStyle bool   `mapstructure:"use_path_style"`
+	Driver           string `mapstructure:"driver"`
+	Endpoint         string `mapstructure:"endpoint"`
+	Bucket           string `mapstructure:"bucket"`
+	APIKey           string `mapstructure:"api_key"`
+	Region           string `mapstructure:"region"`
+	LocalPath        string `mapstructure:"local_path"`
+	UsePathStyle     bool   `mapstructure:"use_path_style"`
+	AccessKeyID      string `mapstructure:"access_key_id"`
+	SecretAccessKey  string `mapstructure:"secret_access_key"`
+	SessionToken     string `mapstructure:"session_token"`
+	S3ForcePathStyle bool   `mapstructure:"s3_force_path_style"`
 }
 
 // MetricsConfig contains metrics endpoint placeholders.
@@ -170,6 +176,13 @@ type MediaHubConfig struct {
 	Enabled                  bool   `mapstructure:"enabled"`
 	BaseURL                  string `mapstructure:"base_url"`
 	RegistrationToken        string `mapstructure:"registration_token"`
+	BootstrapTokenEndpoint   string `mapstructure:"bootstrap_token_endpoint"`
+	BootstrapTokenSecret     string `mapstructure:"bootstrap_token_secret"`
+	RegisterPath             string `mapstructure:"register_path"`
+	ConfigPath               string `mapstructure:"config_path"`
+	HeartbeatPath            string `mapstructure:"heartbeat_path"`
+	MetricsPath              string `mapstructure:"metrics_path"`
+	EventsPath               string `mapstructure:"events_path"`
 	NodeUUID                 string `mapstructure:"node_uuid"`
 	NodeSecret               string `mapstructure:"node_secret"`
 	HMACEnabled              bool   `mapstructure:"hmac_enabled"`
@@ -220,12 +233,26 @@ type LoadOptions struct {
 	// Path points to an explicit config file. When empty, Viper searches the
 	// standard project config locations without failing if no file is present.
 	Path string
+
+	// SearchPaths overrides the implicit discovery paths used when Path is empty.
+	// It exists primarily so tests and embedded callers can be deterministic even
+	// on hosts that already have /etc/auren-transfer-agent/agent.yaml installed.
+	// When empty, DefaultSearchPaths() is used.
+	SearchPaths []string
+
+	// EnvFiles are dotenv-style files loaded before Viper environment overrides.
+	// Existing process environment variables always win over values from these files.
+	// When empty, DefaultEnvFiles() is used.
+	EnvFiles []string
 }
 
 // Load reads the agent configuration through Viper.
 func Load(options LoadOptions) (Config, error) {
 	reader := viper.New()
 	reader.SetConfigType(DefaultConfigType)
+	if err := loadEnvironmentFiles(options.EnvFiles); err != nil {
+		return Config{}, err
+	}
 	registerDefaults(reader)
 	registerEnvironmentOverrides(reader)
 
@@ -233,7 +260,11 @@ func Load(options LoadOptions) (Config, error) {
 		reader.SetConfigFile(options.Path)
 	} else {
 		reader.SetConfigName(DefaultConfigName)
-		for _, path := range DefaultSearchPaths() {
+		searchPaths := options.SearchPaths
+		if len(searchPaths) == 0 {
+			searchPaths = DefaultSearchPaths()
+		}
+		for _, path := range searchPaths {
 			reader.AddConfigPath(path)
 		}
 	}
@@ -276,14 +307,107 @@ func registerDefaults(reader *viper.Viper) {
 func registerEnvironmentOverrides(reader *viper.Viper) {
 	reader.SetEnvPrefix(DefaultEnvPrefix)
 	reader.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	normalizeEnvironmentAliases()
 	reader.AutomaticEnv()
 }
 
+func normalizeEnvironmentAliases() {
+	aliases := map[string][]string{
+		"AUREN_MEDIA_HUB_BASE_URL":                 {"AUREN_AGENT_MEDIA_HUB_BASE_URL", "AUREN_MEDIA_HUB_URL", "MEDIA_HUB_URL"},
+		"AUREN_MEDIA_HUB_REGISTRATION_TOKEN":       {"AUREN_NODE_REGISTRATION_TOKEN", "AUREN_AGENT_REGISTRATION_TOKEN", "AUREN_REGISTRATION_TOKEN", "REGISTRATION_TOKEN"},
+		"AUREN_MEDIA_HUB_BOOTSTRAP_TOKEN_ENDPOINT": {"AUREN_BOOTSTRAP_TOKEN_ENDPOINT", "AUREN_NODE_TOKEN_ENDPOINT", "MEDIA_HUB_NODE_TOKEN_ENDPOINT"},
+		"AUREN_MEDIA_HUB_BOOTSTRAP_TOKEN_SECRET":   {"AUREN_BOOTSTRAP_TOKEN_SECRET", "AUREN_NODE_TOKEN_SECRET", "MEDIA_HUB_NODE_TOKEN_SECRET"},
+		"AUREN_MEDIA_HUB_NODE_UUID":                {"AUREN_NODE_UUID", "AUREN_AGENT_NODE_UUID"},
+		"AUREN_MEDIA_HUB_NODE_SECRET":              {"AUREN_NODE_SECRET", "AUREN_AGENT_NODE_SECRET"},
+		"AUREN_MEDIA_HUB_ROLE":                     {"AUREN_AGENT_ROLE", "AUREN_NODE_ROLE"},
+		"AUREN_MEDIA_HUB_REGION":                   {"AUREN_AGENT_REGION", "AUREN_NODE_REGION"},
+		"AUREN_MEDIA_HUB_PUBLIC_BASE_URL":          {"AUREN_AGENT_PUBLIC_BASE_URL", "AUREN_NODE_PUBLIC_BASE_URL"},
+		"AUREN_MEDIA_HUB_HEALTH_URL":               {"AUREN_AGENT_HEALTH_URL", "AUREN_NODE_HEALTH_URL"},
+		"AUREN_STORAGE_ACCESS_KEY_ID":              {"AUREN_S3_ACCESS_KEY_ID"},
+		"AUREN_STORAGE_SECRET_ACCESS_KEY":          {"AUREN_S3_SECRET_ACCESS_KEY"},
+		"AUREN_STORAGE_SESSION_TOKEN":              {"AUREN_S3_SESSION_TOKEN"},
+		"AUREN_STORAGE_BUCKET":                     {"AUREN_S3_BUCKET"},
+		"AUREN_STORAGE_REGION":                     {"AUREN_S3_REGION"},
+		"AUREN_STORAGE_ENDPOINT":                   {"AUREN_S3_ENDPOINT"},
+	}
+	for canonical, names := range aliases {
+		if strings.TrimSpace(os.Getenv(canonical)) != "" {
+			continue
+		}
+		for _, name := range names {
+			if value, ok := os.LookupEnv(name); ok && strings.TrimSpace(value) != "" {
+				_ = os.Setenv(canonical, value)
+				break
+			}
+		}
+	}
+}
+
+// LoadEnvFiles loads dotenv-style files into process environment without overwriting existing variables.
+func LoadEnvFiles(paths []string) error {
+	return loadEnvironmentFiles(paths)
+}
+
+func loadEnvironmentFiles(paths []string) error {
+	if len(paths) == 0 {
+		paths = DefaultEnvFiles()
+	}
+	for _, path := range paths {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		if err := loadEnvironmentFile(path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func loadEnvironmentFile(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("load env file %s: %w", path, err)
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	lineNo := 0
+	for scanner.Scan() {
+		lineNo++
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = strings.TrimPrefix(line, "export ")
+		idx := strings.Index(line, "=")
+		if idx <= 0 {
+			return fmt.Errorf("load env file %s:%d: expected KEY=value", path, lineNo)
+		}
+		key := strings.TrimSpace(line[:idx])
+		value := strings.TrimSpace(line[idx+1:])
+		value = strings.Trim(value, "\"'")
+		if key == "" {
+			return fmt.Errorf("load env file %s:%d: empty key", path, lineNo)
+		}
+		if _, exists := os.LookupEnv(key); !exists {
+			_ = os.Setenv(key, value)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("read env file %s: %w", path, err)
+	}
+	return nil
+}
 
 // DevUIConfig controls the lightweight local development console exposed by the Agent.
 type DevUIConfig struct {
 	Enabled         bool   `mapstructure:"enabled"`
 	Path            string `mapstructure:"path"`
-	Retention        int    `mapstructure:"retention"`
+	Retention       int    `mapstructure:"retention"`
 	RefreshInterval string `mapstructure:"refresh_interval"`
+	CaptureBodies   bool   `mapstructure:"capture_bodies"`
+	BodyLimitBytes  int64  `mapstructure:"body_limit_bytes"`
 }

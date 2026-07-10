@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Current package baseline: v1.9.1
+# Current package baseline: v1.13.1
 set -Eeuo pipefail
 
 VERSION="${1:-}"
@@ -32,6 +32,7 @@ go test ./...
 mkdir -p bin dist
 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "bin/${APP_NAME}" ./cmd/agent
 rm -rf "${ARCHIVE_DIR}" "${ARCHIVE_PATH}" "${APT_TARBALL}" "dist/apt"
+rm -f "dist/${APP_NAME}_"*.deb "dist/${APP_NAME}_"*.deb.sha256 "dist/${APP_NAME}-apt-repo-"*.tar.gz "dist/${APP_NAME}-apt-repo-"*.tar.gz.sha256
 mkdir -p "${ARCHIVE_DIR}"
 rsync -a --exclude='.git' --exclude='dist' --exclude='bin' ./ "${ARCHIVE_DIR}/"
 mkdir -p "${ARCHIVE_DIR}/bin"

@@ -1,99 +1,60 @@
 # Auren Transfer Agent
 
-**Version:** v1.9.1  
-**Status:** Production / Signed APT Distribution
+## v1.13.1 — Docker Auto Bootstrap Runtime
 
-The Auren Transfer Agent is a Go service responsible for executing high-reliability media transfers and serving Media Hub gateway handoff traffic. It receives jobs from Auren Media Hub, resolves complex URLs, downloads media, uploads the result to Auren Storage, returns operation status and can proxy or redirect public streaming sessions without Laravel carrying the video body.
+**Version:** v1.13.1  
+**Status:** Production / Docker Auto Bootstrap / Signed APT Distribution
 
-This repository intentionally keeps business decisions outside the Agent. The Agent executes jobs. Auren Media Hub owns all business rules.
+This release makes the Agent container self-starting for development and AWS lab validation. When the Docker container starts, it can automatically request or use the initial Media Hub node registration token, register itself, persist `node_uuid`/`node_secret` in the Docker volume, and then start `serve` without a manual `bootstrap` command.
 
-## v1.9.1 scope
+The Auren Transfer Agent is a Go service responsible for executing high-reliability media transfers and serving Media Hub gateway handoff traffic. Auren Media Hub owns business rules; the Agent executes jobs, reports progress and exposes a local Dev Console for diagnostics.
 
-This delivery turns the online APT repository into the recommended production distribution path. It keeps the v1.6.0 Linux package/bootstrap baseline and the v1.7.0 static APT repository, then adds signed-release-first publishing, `stable`/`edge` channel generation, exported public GPG key artifacts and a Media Hub install-command template.
+
+### v1.13.1 Docker permission hotfix
+
+Docker auto-bootstrap now writes bootstrap runtime logs under `/var/lib/auren-transfer-agent/logs` through `AUREN_AGENT_LOG_DIR`, avoiding non-root permission errors on `/var/log/auren-transfer-agent`.
+
+## v1.13.1 scope
 
 Added in this version:
 
-- signed APT repository release files (`InRelease` and `Release.gpg`) when `APT_SIGN=true`;
-- public key artifacts `auren-transfer-agent.gpg` and `.asc`;
-- default `stable,edge` channel generation in the release pipeline;
-- generated `install-apt.sh` and `install.sh` in the repository root;
-- `install-command-template.json` for Media Hub Provider Nodes;
-- `scripts/generate-install-command.sh`;
-- `scripts/export-apt-gpg-key.sh`;
-- improved S3/CloudFront publishing for key, metadata and installer files;
-- release artifact `auren-transfer-agent-apt-repo-v1.9.1.tar.gz`.
+- Docker entrypoint with automatic bootstrap before `serve`;
+- root `.env` driven Docker Compose flow;
+- automatic use of `/api/internal/nodes/bootstrap-token` when a bootstrap secret is configured;
+- persistent Docker volume for `media-hub/node.json`;
+- skip-bootstrap behavior when `node_uuid` already exists;
+- `AUREN_DOCKER_AUTO_BOOTSTRAP` and `AUREN_DOCKER_FORCE_BOOTSTRAP`;
+- Dockerfile ownership fixes so the non-root `auren` user can write the generated config;
+- compose example that starts the Agent with `docker compose -f docker/docker-compose.yml up --build`;
+- static tests for the Docker auto-bootstrap contract.
 
-Build the package and repository:
+Minimal `.env` for Docker:
+
+```dotenv
+AUREN_MEDIA_HUB_BASE_URL=http://host.docker.internal:8000
+AUREN_MEDIA_HUB_BOOTSTRAP_TOKEN_ENDPOINT=/api/internal/nodes/bootstrap-token
+AUREN_MEDIA_HUB_BOOTSTRAP_TOKEN_SECRET=dev-agent-secret
+AUREN_MEDIA_HUB_ROLE=worker
+AUREN_MEDIA_HUB_REGION=sa-east-1
+AUREN_AGENT_HTTP_PORT=8080
+```
+
+Run:
 
 ```bash
-APT_SIGN=true APT_GPG_KEY_ID="YOUR_GPG_KEY_ID" ./scripts/release.sh v1.9.1
+docker compose -f docker/docker-compose.yml up --build
 ```
 
-Install from an online APT repository and bootstrap the node:
-
-```bash
-curl -fsSL https://downloads.auren.app/agent/apt/install-apt.sh | sudo bash -s -- \
-  --repo-url https://downloads.auren.app/agent/apt \
-  --apt-key-url https://downloads.auren.app/agent/apt/auren-transfer-agent.gpg \
-  --media-hub https://media.example.com \
-  --token REGISTRATION_TOKEN \
-  --role worker \
-  --region sa-east-1
-```
-
-For gateway mode add `--enable-gateway --public-base-url=https://node1.example.com`.
-
-## Architecture
-
-```text
-Auren Media Hub
-      ↓ claim/callback + gateway resolve
-Auren Transfer Agent
-      ├─ transfer executor → downloader/uploader → Auren Storage
-      └─ gateway runtime → proxy/redirect → upstream IPTV/media source
-```
-
-## Requirements
-
-- Go 1.22 or newer.
-- Make is optional but recommended.
-- Task is optional and only needed when using `Taskfile.yml`.
-
-
-## Linux package CLI
-
-```bash
-auren-transfer-agent bootstrap --media-hub https://media.example.com --token TOKEN --start-service
-auren-transfer-agent doctor --config /etc/auren-transfer-agent/agent.yaml
-auren-transfer-agent status --config /etc/auren-transfer-agent/agent.yaml
-auren-transfer-agent serve --config /etc/auren-transfer-agent/agent.yaml
-```
-
-The `.deb` package installs the binary as `/usr/bin/auren-transfer-agent` and the service as `auren-transfer-agent.service`. The service survives terminal logout and machine reboot because systemd restarts and enables it.
-
-
-## Local Dev Console
-
-Auren Transfer Agent v1.9.1 includes a lightweight local console for development and node validation. With `server.enabled=true` and `dev_ui.enabled=true`, open:
+Open:
 
 ```text
 http://127.0.0.1:8080/_auren/dev/metrics
 http://127.0.0.1:8080/_auren/dev/requests
 ```
 
-The metrics page shows Media Hub registration state, transfer jobs, gateway sessions, queue state, hardening decisions and request counters. The requests page shows inbound Agent HTTP requests and outbound Media Hub calls with status, duration, bytes and error messages.
-
-For EC2 testing, keep the console private and access it through an SSH tunnel:
-
-```bash
-ssh -L 8080:127.0.0.1:8080 ubuntu@NODE_PUBLIC_IP
-```
-
-Then open `http://127.0.0.1:8080/_auren/dev/metrics` locally.
-
 ## Configuration
 
-The agent loads configuration through the Viper contract. The v1.9.1 ZIP is self-contained for offline compilation.
+The agent loads configuration through the Viper contract. The v1.13.1 ZIP is self-contained for offline compilation.
 
 Default search order when `--config` is not provided:
 
@@ -118,7 +79,7 @@ AUREN_RUNTIME_ENVIRONMENT=production AUREN_LOGGER_LEVEL=debug AUREN_LOGGER_FORMA
 Current top-level YAML sections:
 
 ```text
-app, runtime, logger, server, worker, queue, resolver, download, upload, storage, metrics, heartbeat, security, media_hub
+app, runtime, logger, server, worker, queue, resolver, download, upload, storage, metrics, heartbeat, security, media_hub, dev_ui
 ```
 
 
@@ -256,8 +217,8 @@ make run
 Expected default output includes one structured JSON startup line followed by the foundation readiness summary:
 
 ```text
-{"agent_id":"...","component":"bootstrap","environment":"local","fingerprint":"...","hostname":"...","hostname_source":"os","level":"info","message":"agent initialized","service":"auren-transfer-agent","status":"production/ready","time":"...","version":"v1.9.1"}
-auren-transfer-agent v1.9.1 initialized
+{"agent_id":"...","component":"bootstrap","environment":"local","fingerprint":"...","hostname":"...","hostname_source":"os","level":"info","message":"agent initialized","service":"auren-transfer-agent","status":"production/ready","time":"...","version":"v1.13.1"}
+auren-transfer-agent v1.13.1 initialized
 status: production-ready
 identity: agent_id=... fingerprint=... algorithm=sha256 persistence=persistent source=created path=data/identity/agent.json
 host: hostname=... source=os raw="..."
@@ -282,7 +243,7 @@ make version
 Expected output:
 
 ```text
-auren-transfer-agent v1.9.1 (production/ready)
+auren-transfer-agent v1.13.1 (production/ready)
 ```
 
 ## Test
@@ -304,12 +265,12 @@ make test
 
 ## Current phase
 
-This repository is currently at **v1.9.1 — Signed APT Repository & Media Hub Install Command**. EPIC 1 through EPIC 16 remain the production/connector/transfer/storage baseline, and EPIC 17 adds Media Hub public streaming handoff through the Agent.
+This repository is currently at **v1.13.1 — Signed APT Repository & Media Hub Install Command**. EPIC 1 through EPIC 16 remain the production/connector/transfer/storage baseline, and EPIC 17 adds Media Hub public streaming handoff through the Agent.
 
 
 ## Production deployment
 
-The v1.9.1 ZIP includes the complete EPIC 13 production baseline, EPIC 14 Media Hub connector foundation, EPIC 15 real transfer executor, EPIC 16 Auren Storage production adapter and EPIC 17 Operational Hardening:
+The v1.13.1 ZIP includes the complete EPIC 13 production baseline, EPIC 14 Media Hub connector foundation, EPIC 15 real transfer executor, EPIC 16 Auren Storage production adapter and EPIC 17 Operational Hardening:
 
 - Docker image definition: `docker/Dockerfile`;
 - Docker Compose stack: `docker/docker-compose.yml`;

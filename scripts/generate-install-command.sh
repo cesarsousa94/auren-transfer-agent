@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Auren Transfer Agent v1.9.1 distribution helper
+# Auren Transfer Agent v1.13.1 distribution helper
 set -Eeuo pipefail
 
-REPO_URL="${REPO_URL:-https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent/apt}"
+REPO_URL="${REPO_URL:-https://downloads.auren.app/agent/apt}"
 INSTALL_URL="${INSTALL_URL:-${REPO_URL%/}/install-apt.sh}"
 KEY_URL="${KEY_URL:-${APT_KEY_URL:-${REPO_URL%/}/auren-transfer-agent.gpg}}"
 MEDIA_HUB="${MEDIA_HUB:-}"
@@ -22,9 +22,9 @@ Usage:
   MEDIA_HUB=https://media.example.com TOKEN=auren-node-... ./scripts/generate-install-command.sh
 
 Environment:
-  REPO_URL=https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent/apt
-  INSTALL_URL=https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent/apt/install-apt.sh
-  KEY_URL=https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent/apt/auren-transfer-agent.gpg
+  REPO_URL=https://downloads.auren.app/agent/apt
+  INSTALL_URL=https://downloads.auren.app/agent/apt/install-apt.sh
+  KEY_URL=https://downloads.auren.app/agent/apt/auren-transfer-agent.gpg
   MEDIA_HUB=https://media.example.com       required for ready-to-run bootstrap
   TOKEN=auren-node-...                      optional; use placeholder if omitted
   ROLE=worker|gateway|hybrid                default worker

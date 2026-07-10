@@ -1,0 +1,175 @@
+# Auren Transfer Agent v1.12.0 — root dotenv example
+# Copy to .env for local development or to /etc/auren-transfer-agent/auren-transfer-agent.env for systemd.
+# Existing process environment variables override values loaded from this file.
+
+# -----------------------------------------------------------------------------
+# Runtime
+# -----------------------------------------------------------------------------
+AUREN_RUNTIME_ENVIRONMENT=development
+AUREN_RUNTIME_DATA_DIR=./data
+AUREN_RUNTIME_TEMP_DIR=./tmp
+AUREN_LOGGER_LEVEL=info
+AUREN_LOGGER_FORMAT=json
+
+# -----------------------------------------------------------------------------
+# HTTP server / Dev Console
+# -----------------------------------------------------------------------------
+AUREN_SERVER_ENABLED=true
+AUREN_SERVER_HOST=0.0.0.0
+AUREN_SERVER_PORT=8080
+AUREN_DEV_UI_ENABLED=true
+AUREN_DEV_UI_PATH=/_auren/dev
+AUREN_DEV_UI_RETENTION=1000
+AUREN_DEV_UI_REFRESH_INTERVAL=2s
+AUREN_DEV_UI_CAPTURE_BODIES=true
+AUREN_DEV_UI_BODY_LIMIT_BYTES=8192
+
+# -----------------------------------------------------------------------------
+# Media Hub control plane
+# Canonical variables. Aliases supported for bootstrap:
+# - AUREN_AGENT_MEDIA_HUB_BASE_URL / AUREN_MEDIA_HUB_URL / MEDIA_HUB_URL
+# - AUREN_NODE_REGISTRATION_TOKEN / AUREN_AGENT_REGISTRATION_TOKEN / REGISTRATION_TOKEN
+# -----------------------------------------------------------------------------
+AUREN_MEDIA_HUB_ENABLED=true
+AUREN_MEDIA_HUB_BASE_URL=http://192.168.3.10:8000
+AUREN_MEDIA_HUB_REGISTRATION_TOKEN=
+
+# Optional: let the Agent request a one-time registration token from Media Hub.
+# The Media Hub side must implement this endpoint later.
+AUREN_MEDIA_HUB_BOOTSTRAP_TOKEN_ENDPOINT=auren-node-X13KD1QW89daDDeNJuF0uDChpOsLkvhnbJ6ji4nDNWAVgB2W
+AUREN_MEDIA_HUB_BOOTSTRAP_TOKEN_SECRET=
+
+# Endpoint paths. Keep defaults unless Media Hub exposes compatibility routes.
+AUREN_MEDIA_HUB_REGISTER_PATH=/api/internal/nodes/register
+AUREN_MEDIA_HUB_CONFIG_PATH=/api/internal/nodes/config
+AUREN_MEDIA_HUB_HEARTBEAT_PATH=/api/internal/nodes/heartbeat
+AUREN_MEDIA_HUB_METRICS_PATH=/api/internal/nodes/metrics
+AUREN_MEDIA_HUB_EVENTS_PATH=/api/internal/nodes/events
+
+# Persisted after bootstrap in /var/lib/auren-transfer-agent/media-hub/node.json.
+# Do not fill manually unless recovering a known node.
+AUREN_MEDIA_HUB_NODE_UUID=
+AUREN_MEDIA_HUB_NODE_SECRET=
+AUREN_MEDIA_HUB_HMAC_ENABLED=true
+AUREN_MEDIA_HUB_POLL_ENABLED=true
+AUREN_MEDIA_HUB_POLL_INTERVAL=2s
+AUREN_MEDIA_HUB_HEARTBEAT_INTERVAL=30s
+AUREN_MEDIA_HUB_METRICS_INTERVAL=60s
+AUREN_MEDIA_HUB_EVENTS_FLUSH_INTERVAL=10s
+
+# Node identity/capacity
+AUREN_MEDIA_HUB_ROLE=hybrid
+AUREN_MEDIA_HUB_PROVIDER=auren_transfer_agent
+AUREN_MEDIA_HUB_REGION=sa-east-1
+AUREN_MEDIA_HUB_AVAILABILITY_ZONE=
+AUREN_MEDIA_HUB_PUBLIC_BASE_URL=
+AUREN_MEDIA_HUB_HEALTH_URL=
+AUREN_MEDIA_HUB_MAX_SESSIONS=500
+AUREN_MEDIA_HUB_MAX_EGRESS_MBPS=1000
+AUREN_MEDIA_HUB_CAPABILITIES=transfer,gateway,download,upload,auren_storage,xtream,shui,m3u8,hls,live,movie,series
+
+# Transfer claim/execution
+AUREN_MEDIA_HUB_TRANSFER_ENABLED=true
+AUREN_MEDIA_HUB_CLAIM_ENABLED=true
+AUREN_MEDIA_HUB_CLAIM_INTERVAL=2s
+AUREN_MEDIA_HUB_PROGRESS_INTERVAL=5s
+AUREN_MEDIA_HUB_CONTROL_INTERVAL=10s
+AUREN_MEDIA_HUB_MAX_CONCURRENT_JOBS=2
+AUREN_MEDIA_HUB_ACCEPTED_OPERATIONS=media_remote_download,playlist_m3u_download,remote_download
+AUREN_MEDIA_HUB_WORK_DIR=./data/transfer
+AUREN_MEDIA_HUB_MIN_BYTES=65536
+AUREN_MEDIA_HUB_BLOCK_HTML=true
+
+# Gateway runtime
+AUREN_MEDIA_HUB_GATEWAY_ENABLED=false
+AUREN_MEDIA_HUB_GATEWAY_PROXY_ENABLED=true
+AUREN_MEDIA_HUB_GATEWAY_REDIRECT_ENABLED=true
+AUREN_MEDIA_HUB_GATEWAY_HEARTBEAT_INTERVAL=10s
+AUREN_MEDIA_HUB_GATEWAY_TOKEN_TTL=5m
+
+# Operational hardening
+AUREN_MEDIA_HUB_DRAIN_ENABLED=true
+AUREN_MEDIA_HUB_DRAIN_FILE=./data/transfer/drain
+AUREN_MEDIA_HUB_BACKPRESSURE_ENABLED=true
+AUREN_MEDIA_HUB_DISK_GUARD_ENABLED=true
+AUREN_MEDIA_HUB_DISK_MIN_FREE_BYTES=1073741824
+AUREN_MEDIA_HUB_DEAD_LETTER_ENABLED=true
+AUREN_MEDIA_HUB_DEAD_LETTER_DIR=./data/transfer/dead-letter
+AUREN_MEDIA_HUB_LEASE_RENEWAL_ENABLED=true
+AUREN_MEDIA_HUB_LEASE_RENEWAL_INTERVAL=30s
+AUREN_MEDIA_HUB_SECRET_ROTATION_ENABLED=false
+AUREN_MEDIA_HUB_SECRET_ROTATION_INTERVAL=24h
+
+# -----------------------------------------------------------------------------
+# Download/upload/storage
+# -----------------------------------------------------------------------------
+AUREN_DOWNLOAD_TEMP_DIR=./tmp/downloads
+AUREN_DOWNLOAD_CONNECT_TIMEOUT=15s
+AUREN_DOWNLOAD_RESPONSE_HEADER_TIMEOUT=30s
+AUREN_DOWNLOAD_IDLE_TIMEOUT=60s
+AUREN_DOWNLOAD_MAX_RETRIES=3
+AUREN_DOWNLOAD_RETRY_BACKOFF=2s
+AUREN_DOWNLOAD_CHUNK_SIZE=8MiB
+AUREN_DOWNLOAD_RESUME_ENABLED=true
+AUREN_DOWNLOAD_CHECKSUM=sha256
+
+AUREN_UPLOAD_DRIVER=local
+AUREN_UPLOAD_MULTIPART_ENABLED=true
+AUREN_UPLOAD_PART_SIZE=16MiB
+
+# local | auren_storage | s3
+AUREN_STORAGE_DRIVER=local
+AUREN_STORAGE_LOCAL_PATH=./data/storage
+AUREN_STORAGE_ENDPOINT=
+AUREN_STORAGE_BUCKET=
+AUREN_STORAGE_REGION=sa-east-1
+AUREN_STORAGE_API_KEY=
+AUREN_STORAGE_USE_PATH_STYLE=true
+
+# Direct S3 adapter credentials. Prefer IAM role/env injection in production.
+AUREN_STORAGE_ACCESS_KEY_ID=
+AUREN_STORAGE_SECRET_ACCESS_KEY=
+AUREN_STORAGE_SESSION_TOKEN=
+AUREN_STORAGE_S3_FORCE_PATH_STYLE=false
+AUREN_S3_ACCESS_KEY_ID=
+AUREN_S3_SECRET_ACCESS_KEY=
+AUREN_S3_SESSION_TOKEN=
+AUREN_S3_BUCKET=
+AUREN_S3_REGION=
+AUREN_S3_ENDPOINT=
+
+# -----------------------------------------------------------------------------
+# Queue/worker/security
+# -----------------------------------------------------------------------------
+AUREN_WORKER_ENABLED=true
+AUREN_WORKER_CONCURRENCY=2
+AUREN_QUEUE_DRIVER=memory
+AUREN_QUEUE_MEMORY_CAPACITY=100
+AUREN_QUEUE_POLL_INTERVAL=1s
+
+AUREN_SECURITY_API_KEY_REQUIRED=false
+AUREN_SECURITY_API_KEY=
+AUREN_SECURITY_API_KEY_HASH=
+AUREN_SECURITY_TOKEN_HEADER=Authorization
+AUREN_SECURITY_ALLOW_INSECURE_HTTP=true
+AUREN_SECURITY_JWT_ENABLED=false
+AUREN_SECURITY_JWT_SECRET=
+AUREN_SECURITY_JWT_TTL=15m
+AUREN_SECURITY_MTLS_ENABLED=false
+AUREN_SECURITY_MTLS_REQUIRED_CN=
+AUREN_SECURITY_RBAC_ENABLED=false
+AUREN_SECURITY_RATE_LIMIT_ENABLED=false
+AUREN_SECURITY_RATE_LIMIT_PER_MINUTE=60
+AUREN_SECURITY_SECRETS_PROVIDER=env
+AUREN_SECURITY_SECRETS_FILE=
+
+# -----------------------------------------------------------------------------
+# Bootstrap convenience aliases used by `auren-transfer-agent bootstrap --env-file .env`
+# -----------------------------------------------------------------------------
+AUREN_AGENT_ROLE=hybrid
+AUREN_AGENT_REGION=sa-east-1
+AUREN_AGENT_PUBLIC_BASE_URL=
+AUREN_AGENT_HEALTH_URL=
+AUREN_AGENT_ENABLE_GATEWAY=false
+AUREN_AGENT_MAX_CONCURRENT_JOBS=2
+AUREN_AGENT_START_SERVICE=false

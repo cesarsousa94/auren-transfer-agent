@@ -1,8 +1,20 @@
+## v1.13.1 — Docker Bootstrap Permission Hotfix
+
+Status: complete. Fixes Docker non-root log directory handling for automatic bootstrap.
+
+## v1.13.1 — Docker Auto Bootstrap Runtime
+
+Status: complete. The Agent container can now bootstrap itself on startup, persist node identity in a Docker volume and run `serve` without manual intervention. This is the preferred local/AWS lab validation path before remote APT deployment.
+
 # Auren Transfer Agent Roadmap
+
+## v1.13.1 — Env Bootstrap & Node Auth Simplification
+
+Status: delivered. The Agent can now be configured from a root `.env`, bootstrap can consume URL/token from env aliases, node endpoint paths are configurable, and future Media Hub token-endpoint issuance is supported.
 
 **Document version:** 1.0  
 **Status:** Approved  
-**Current delivery:** v1.9.1
+**Current delivery:** v1.13.1
 
 ## Objective
 
@@ -101,7 +113,7 @@ This structure is definitive and must not be reorganized.
 - `v1.5.0` — Operational Hardening
 - `v1.6.0` — Linux Package & Zero-Touch Bootstrap
 - `v1.7.0` — APT Repository Distribution
-- `v1.9.1` — Signed APT Repository & Media Hub Install Command
+- `v1.13.1` — Signed APT Repository & Media Hub Install Command
 
 ## EPIC 0 — Foundation Base
 
@@ -401,7 +413,7 @@ Delivered:
 
 ## EPIC 20 — Signed APT Repository & Media Hub Install Command
 
-**v1.9.1 status:** complete.
+**v1.13.1 status:** complete.
 
 Delivered:
 
@@ -411,10 +423,10 @@ Delivered:
 - S3/CloudFront publishing helper under `scripts/publish-apt-s3.sh`;
 - APT-aware installer flags for online repository installs;
 - repository-side `install-apt.sh`;
-- release artifact `auren-transfer-agent-apt-repo-v1.9.1.tar.gz`;
+- release artifact `auren-transfer-agent-apt-repo-v1.13.1.tar.gz`;
 - clearer systemd diagnostics for WSL/container labs without breaking successful registration.
 
 
-## v1.9.1 — Local Dev Console
+## v1.13.1 — Local Dev Console
 
 Status: complete. Adds lightweight local HTML/JSON diagnostics for metrics and request tracing while keeping Prometheus/Grafana optional for later operations.

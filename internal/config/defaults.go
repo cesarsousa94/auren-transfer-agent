@@ -11,11 +11,22 @@ var defaultSearchPaths = []string{
 	"/etc/auren-transfer-agent",
 }
 
+var defaultEnvFiles = []string{
+	".env",
+}
+
 // DefaultSearchPaths returns the canonical config discovery locations.
 func DefaultSearchPaths() []string {
 	paths := make([]string, len(defaultSearchPaths))
 	copy(paths, defaultSearchPaths)
 	return paths
+}
+
+// DefaultEnvFiles returns dotenv-style files read before process environment overrides.
+func DefaultEnvFiles() []string {
+	files := make([]string, len(defaultEnvFiles))
+	copy(files, defaultEnvFiles)
+	return files
 }
 
 // DefaultConfig returns the official built-in configuration baseline.
@@ -86,13 +97,17 @@ func DefaultConfig() Config {
 			PartSize:         "16MiB",
 		},
 		Storage: StorageConfig{
-			Driver:       "local",
-			Endpoint:     "",
-			Bucket:       "",
-			APIKey:       "",
-			Region:       "us-east-1",
-			LocalPath:    "./data/storage",
-			UsePathStyle: true,
+			Driver:           "local",
+			Endpoint:         "",
+			Bucket:           "",
+			APIKey:           "",
+			Region:           "us-east-1",
+			LocalPath:        "./data/storage",
+			UsePathStyle:     true,
+			AccessKeyID:      "",
+			SecretAccessKey:  "",
+			SessionToken:     "",
+			S3ForcePathStyle: true,
 		},
 		Metrics: MetricsConfig{
 			Enabled: false,
@@ -127,11 +142,20 @@ func DefaultConfig() Config {
 			Path:            "/_auren/dev",
 			Retention:       500,
 			RefreshInterval: "2s",
+			CaptureBodies:   true,
+			BodyLimitBytes:  8192,
 		},
 		MediaHub: MediaHubConfig{
 			Enabled:                  false,
 			BaseURL:                  "",
 			RegistrationToken:        "",
+			BootstrapTokenEndpoint:   "",
+			BootstrapTokenSecret:     "",
+			RegisterPath:             "/api/internal/nodes/register",
+			ConfigPath:               "/api/internal/nodes/config",
+			HeartbeatPath:            "/api/internal/nodes/heartbeat",
+			MetricsPath:              "/api/internal/nodes/metrics",
+			EventsPath:               "/api/internal/nodes/events",
 			NodeUUID:                 "",
 			NodeSecret:               "",
 			HMACEnabled:              true,
@@ -239,13 +263,17 @@ func DefaultValues() map[string]any {
 		"upload.multipart_enabled": cfg.Upload.MultipartEnabled,
 		"upload.part_size":         cfg.Upload.PartSize,
 
-		"storage.driver":         cfg.Storage.Driver,
-		"storage.endpoint":       cfg.Storage.Endpoint,
-		"storage.bucket":         cfg.Storage.Bucket,
-		"storage.api_key":        cfg.Storage.APIKey,
-		"storage.region":         cfg.Storage.Region,
-		"storage.local_path":     cfg.Storage.LocalPath,
-		"storage.use_path_style": cfg.Storage.UsePathStyle,
+		"storage.driver":              cfg.Storage.Driver,
+		"storage.endpoint":            cfg.Storage.Endpoint,
+		"storage.bucket":              cfg.Storage.Bucket,
+		"storage.api_key":             cfg.Storage.APIKey,
+		"storage.region":              cfg.Storage.Region,
+		"storage.local_path":          cfg.Storage.LocalPath,
+		"storage.use_path_style":      cfg.Storage.UsePathStyle,
+		"storage.access_key_id":       cfg.Storage.AccessKeyID,
+		"storage.secret_access_key":   cfg.Storage.SecretAccessKey,
+		"storage.session_token":       cfg.Storage.SessionToken,
+		"storage.s3_force_path_style": cfg.Storage.S3ForcePathStyle,
 
 		"metrics.enabled": cfg.Metrics.Enabled,
 		"metrics.host":    cfg.Metrics.Host,
@@ -275,6 +303,13 @@ func DefaultValues() map[string]any {
 		"media_hub.enabled":                    cfg.MediaHub.Enabled,
 		"media_hub.base_url":                   cfg.MediaHub.BaseURL,
 		"media_hub.registration_token":         cfg.MediaHub.RegistrationToken,
+		"media_hub.bootstrap_token_endpoint":   cfg.MediaHub.BootstrapTokenEndpoint,
+		"media_hub.bootstrap_token_secret":     cfg.MediaHub.BootstrapTokenSecret,
+		"media_hub.register_path":              cfg.MediaHub.RegisterPath,
+		"media_hub.config_path":                cfg.MediaHub.ConfigPath,
+		"media_hub.heartbeat_path":             cfg.MediaHub.HeartbeatPath,
+		"media_hub.metrics_path":               cfg.MediaHub.MetricsPath,
+		"media_hub.events_path":                cfg.MediaHub.EventsPath,
 		"media_hub.node_uuid":                  cfg.MediaHub.NodeUUID,
 		"media_hub.node_secret":                cfg.MediaHub.NodeSecret,
 		"media_hub.hmac_enabled":               cfg.MediaHub.HMACEnabled,
@@ -323,5 +358,7 @@ func DefaultValues() map[string]any {
 		"dev_ui.path":             cfg.DevUI.Path,
 		"dev_ui.retention":        cfg.DevUI.Retention,
 		"dev_ui.refresh_interval": cfg.DevUI.RefreshInterval,
+		"dev_ui.capture_bodies":   cfg.DevUI.CaptureBodies,
+		"dev_ui.body_limit_bytes": cfg.DevUI.BodyLimitBytes,
 	}
 }

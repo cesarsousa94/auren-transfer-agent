@@ -1,6 +1,6 @@
-# Production Deployment — v1.9.1
+# Production Deployment — v1.13.1
 
-Version `v1.9.1` keeps the runtime, Media Hub connector, transfer executor, Auren Storage adapter, Gateway Runtime, operational hardening and Debian packaging baseline, then makes signed online APT distribution the recommended deployment path.
+Version `v1.13.1` keeps the runtime, Media Hub connector, transfer executor, Auren Storage adapter, Gateway Runtime, operational hardening and Debian packaging baseline, then makes signed online APT distribution the recommended deployment path.
 
 ## Recommended production install path
 
@@ -19,7 +19,7 @@ APT_GPG_KEY_ID="YOUR_GPG_KEY_ID" \
 APT_CHANNELS="stable,edge" \
 APT_PUBLIC_REPO_URL="https://downloads.seudominio.com/agent/apt" \
 APT_PUBLIC_KEY_URL="https://downloads.seudominio.com/agent/apt/auren-transfer-agent.gpg" \
-./scripts/release.sh v1.9.1
+./scripts/release.sh v1.13.1
 ```
 
 ## Publish release
@@ -75,7 +75,7 @@ The service runs:
 Direct package installs remain useful for offline troubleshooting:
 
 ```bash
-sudo dpkg -i dist/auren-transfer-agent_1.9.1_amd64.deb
+sudo dpkg -i dist/auren-transfer-agent_1.13.1_amd64.deb
 sudo apt-get install -f -y
 ```
 

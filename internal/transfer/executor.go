@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/auren/auren-transfer-agent/internal/config"
+	"github.com/auren/auren-transfer-agent/internal/devui"
 	"github.com/auren/auren-transfer-agent/internal/download"
 	"github.com/auren/auren-transfer-agent/internal/mediahub"
 	"github.com/auren/auren-transfer-agent/internal/ops"
@@ -37,6 +38,7 @@ type ExecutorOptions struct {
 	DownloadMetrics download.MetricsRecorder
 	Tracker         *Tracker
 	Operations      *ops.Runtime
+	Recorder        *devui.Recorder
 	Now             func() time.Time
 }
 
@@ -52,6 +54,7 @@ type Executor struct {
 	downloadMetrics download.MetricsRecorder
 	tracker         *Tracker
 	operations      *ops.Runtime
+	recorder        *devui.Recorder
 	now             func() time.Time
 }
 
@@ -74,7 +77,7 @@ func NewExecutor(options ExecutorOptions) (*Executor, error) {
 	if tracker == nil {
 		tracker = NewTracker(options.Config.MediaHub.MaxConcurrentJobs)
 	}
-	return &Executor{cfg: options.Config, client: options.Client, nodeState: options.NodeState, httpClient: options.HTTPClient, resolver: options.Resolver, localAdapter: options.LocalAdapter, stateStore: options.StateStore, downloadMetrics: options.DownloadMetrics, tracker: tracker, operations: options.Operations, now: now}, nil
+	return &Executor{cfg: options.Config, client: options.Client, nodeState: options.NodeState, httpClient: options.HTTPClient, resolver: options.Resolver, localAdapter: options.LocalAdapter, stateStore: options.StateStore, downloadMetrics: options.DownloadMetrics, tracker: tracker, operations: options.Operations, recorder: options.Recorder, now: now}, nil
 }
 
 // Stats returns current executor workload counters.
@@ -100,7 +103,7 @@ func (executor *Executor) Execute(ctx context.Context, job mediahub.TransferJob)
 		_ = executor.release(ctx, job, decision.Reason, decision.Message)
 		return fmt.Errorf("transfer job rejected by hardening policy: %s", firstNonEmpty(decision.Message, decision.Reason))
 	}
-	if !executor.tracker.TryStart(job.UUID) {
+	if !executor.tracker.TryStartJob(ActiveJob{UUID: job.UUID, Operation: job.Operation, Stage: "claim", SourceURL: job.Source.URL, DestinationDriver: job.Destination.Driver, ObjectPath: objectPath(job.Destination), StartedAt: executor.now(), UpdatedAt: executor.now(), Message: "Job reivindicado pelo Agent."}) {
 		return fmt.Errorf("transfer executor capacity exhausted")
 	}
 	success := false
@@ -110,6 +113,8 @@ func (executor *Executor) Execute(ctx context.Context, job mediahub.TransferJob)
 	defer cancel()
 	controlErr := executor.startControlWatcher(execCtx, job, cancel)
 	state := JobState{UUID: job.UUID, Operation: job.Operation, Status: StateStatusClaimed, Stage: "claim", SourceURL: job.Source.URL, ObjectPath: objectPath(job.Destination), Job: job, StartedAt: executor.now(), UpdatedAt: executor.now()}
+	executor.updateActiveJob(job, "claim", "Job reivindicado pelo Agent.", 0, 0, 0, 0)
+	executor.recordTransfer(job, "claim", "Job reivindicado pelo Agent.", map[string]any{"source_url": job.Source.URL, "destination_driver": job.Destination.Driver, "object_path": objectPath(job.Destination), "context": job.Context, "metadata": job.Metadata})
 	_ = executor.stateStore.Save(state)
 	leaseStop := executor.startLeaseRenewal(execCtx, job, &state)
 	defer close(leaseStop)
@@ -119,6 +124,8 @@ func (executor *Executor) Execute(ctx context.Context, job mediahub.TransferJob)
 	}
 
 	downloadStarted := executor.now()
+	executor.updateActiveJob(job, "download", "Download iniciado.", 0, 0, 0, 0)
+	executor.recordTransfer(job, "download.start", "Download iniciado.", map[string]any{"source_url": job.Source.URL, "headers": job.Source.Headers, "resolver_strategy": job.Source.ResolverStrategy})
 	downloadResult, err := executor.download(execCtx, job, &state)
 	if err != nil {
 		err = preferControlError(err, controlErr)
@@ -130,6 +137,8 @@ func (executor *Executor) Execute(ctx context.Context, job mediahub.TransferJob)
 		return err
 	}
 	uploadStarted := executor.now()
+	executor.updateActiveJob(job, "upload", "Upload iniciado.", downloadResult.Bytes, downloadResult.Bytes, 0, 100)
+	executor.recordTransfer(job, "upload.start", "Upload iniciado.", map[string]any{"destination_driver": job.Destination.Driver, "endpoint": job.Destination.Endpoint, "bucket": job.Destination.Bucket, "bucket_uuid": job.Destination.BucketUUID, "object_path": objectPath(job.Destination), "upload_url": job.Destination.UploadURL})
 	uploadResult, err := executor.upload(execCtx, job, downloadResult)
 	if err != nil {
 		err = preferControlError(err, controlErr)
@@ -141,6 +150,8 @@ func (executor *Executor) Execute(ctx context.Context, job mediahub.TransferJob)
 		_ = executor.failed(context.Background(), job, "upload", err, true, map[string]any{"temp_path": downloadResult.Path})
 		return err
 	}
+	executor.updateActiveJob(job, "completed", "Upload concluído.", uploadResult.Size, uploadResult.Size, 0, 100)
+	executor.recordTransfer(job, "upload.completed", "Upload concluído.", map[string]any{"destination_driver": uploadResult.Driver, "bucket": uploadResult.Bucket, "bucket_uuid": uploadResult.BucketUUID, "object_path": uploadResult.Path, "url": uploadResult.URL, "size": uploadResult.Size, "checksum_sha256": uploadResult.ChecksumSHA256})
 	state.Status = StateStatusCompleted
 	state.Stage = "completed"
 	state.CurrentBytes = downloadResult.Bytes
@@ -155,6 +166,32 @@ func (executor *Executor) Execute(ctx context.Context, job mediahub.TransferJob)
 	}
 	success = true
 	return nil
+}
+
+func (executor *Executor) updateActiveJob(job mediahub.TransferJob, stage string, message string, current int64, total int64, speed int64, percent float64) {
+	if executor == nil || executor.tracker == nil {
+		return
+	}
+	executor.tracker.UpdateJob(job.UUID, ActiveJob{Operation: job.Operation, Stage: stage, Message: message, SourceURL: job.Source.URL, DestinationDriver: job.Destination.Driver, ObjectPath: objectPath(job.Destination), CurrentBytes: current, TotalBytes: total, SpeedBps: speed, Percent: percent})
+}
+
+func (executor *Executor) recordTransfer(job mediahub.TransferJob, stage string, message string, metadata map[string]any) {
+	if executor == nil || executor.recorder == nil {
+		return
+	}
+	if metadata == nil {
+		metadata = map[string]any{}
+	}
+	if _, ok := metadata["source_url"]; !ok {
+		metadata["source_url"] = job.Source.URL
+	}
+	if _, ok := metadata["destination_driver"]; !ok {
+		metadata["destination_driver"] = job.Destination.Driver
+	}
+	if _, ok := metadata["object_path"]; !ok {
+		metadata["object_path"] = objectPath(job.Destination)
+	}
+	executor.recorder.RecordTransferEvent(job.UUID, job.Operation, stage, message, metadata)
 }
 
 func (executor *Executor) admissionDecision() ops.Decision {
@@ -399,6 +436,18 @@ func (executor *Executor) upload(ctx context.Context, job mediahub.TransferJob, 
 		_ = executor.progress(ctx, job, "upload", result.BytesWritten, result.BytesWritten, 0, 100, "Upload local concluído.", nil)
 		return mediahub.TransferObjectResult{Driver: result.Driver, BucketUUID: result.BucketUUID, Bucket: result.Bucket, ObjectUUID: result.ObjectUUID, Path: result.ObjectPath, URL: result.Location, Size: result.BytesWritten, ChecksumSHA256: result.ChecksumSHA256, Visibility: result.Visibility, MimeType: result.MimeType, Multipart: result.Multipart, Metadata: result.Metadata}, nil
 	}
+	if driver == storage.DriverS3 {
+		adapter, err := storage.NewS3Adapter(storage.S3Options{Endpoint: firstNonEmpty(job.Destination.Endpoint, executor.cfg.Storage.Endpoint), Bucket: firstNonEmpty(job.Destination.Bucket, executor.cfg.Storage.Bucket), Region: executor.cfg.Storage.Region, AccessKeyID: firstNonEmpty(job.Destination.AccessKeyID, executor.cfg.Storage.AccessKeyID), SecretAccessKey: firstNonEmpty(job.Destination.SecretAccessKey, executor.cfg.Storage.SecretAccessKey), SessionToken: firstNonEmpty(job.Destination.SessionToken, executor.cfg.Storage.SessionToken), ForcePathStyle: job.Destination.ForcePathStyle || executor.cfg.Storage.S3ForcePathStyle || executor.cfg.Storage.UsePathStyle, HTTPClient: executor.httpClient.StandardClient()})
+		if err != nil {
+			return mediahub.TransferObjectResult{}, err
+		}
+		result, err := adapter.Upload(ctx, executor.storageUploadRequest(job, downloadResult, objectPath))
+		if err != nil {
+			return mediahub.TransferObjectResult{}, err
+		}
+		_ = executor.progress(ctx, job, "upload", result.BytesWritten, result.BytesWritten, 0, 100, "Upload direto para S3 concluído.", map[string]any{"driver": storage.DriverS3, "bucket": result.Bucket, "object_path": result.ObjectPath})
+		return mediahub.TransferObjectResult{Driver: result.Driver, Bucket: result.Bucket, ObjectUUID: result.ObjectUUID, Path: result.ObjectPath, URL: result.Location, Size: result.BytesWritten, ChecksumSHA256: result.ChecksumSHA256, Visibility: result.Visibility, MimeType: result.MimeType, Multipart: result.Multipart, Metadata: result.Metadata}, nil
+	}
 	if driver == storage.DriverAurenStorage {
 		if strings.TrimSpace(job.Destination.UploadURL) != "" {
 			result, err := executor.uploadToSignedURL(ctx, job, downloadResult, objectPath)
@@ -510,6 +559,8 @@ func (executor *Executor) progress(ctx context.Context, job mediahub.TransferJob
 	if !executor.hasCallbacks() {
 		return nil
 	}
+	executor.updateActiveJob(job, stage, message, current, total, speed, percent)
+	executor.recordTransfer(job, "progress."+stage, message, map[string]any{"current_bytes": current, "total_bytes": total, "speed_bps": speed, "percent": percent, "metrics": metrics})
 	return executor.client.SendTransferProgress(ctx, executor.nodeState(), job.UUID, mediahub.TransferProgressPayload{Status: "running", Stage: stage, CurrentBytes: current, TotalBytes: total, SpeedBps: speed, Percent: percent, Message: message, Metrics: metrics, GeneratedAt: executor.now()})
 }
 

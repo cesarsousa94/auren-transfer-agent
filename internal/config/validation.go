@@ -95,11 +95,15 @@ func Validate(cfg Config) error {
 	validator.duration("upload.retry_backoff", cfg.Upload.RetryBackoff)
 	validator.size("upload.part_size", cfg.Upload.PartSize)
 
-	validator.oneOf("storage.driver", cfg.Storage.Driver, []string{"local", "auren_storage"})
+	validator.oneOf("storage.driver", cfg.Storage.Driver, []string{"local", "auren_storage", "s3"})
 	validator.requiredString("storage.region", cfg.Storage.Region)
 	if strings.EqualFold(strings.TrimSpace(cfg.Storage.Driver), "auren_storage") {
 		validator.requiredString("storage.endpoint", cfg.Storage.Endpoint)
 		validator.requiredString("storage.bucket", cfg.Storage.Bucket)
+	} else if strings.EqualFold(strings.TrimSpace(cfg.Storage.Driver), "s3") {
+		validator.requiredString("storage.bucket", cfg.Storage.Bucket)
+		validator.requiredString("storage.access_key_id", cfg.Storage.AccessKeyID)
+		validator.requiredString("storage.secret_access_key", cfg.Storage.SecretAccessKey)
 	} else {
 		validator.requiredString("storage.local_path", cfg.Storage.LocalPath)
 	}
@@ -136,10 +140,18 @@ func Validate(cfg Config) error {
 		validator.path("dev_ui.path", cfg.DevUI.Path)
 		validator.positiveInt("dev_ui.retention", cfg.DevUI.Retention)
 		validator.duration("dev_ui.refresh_interval", cfg.DevUI.RefreshInterval)
+		if cfg.DevUI.BodyLimitBytes < 0 {
+			validator.add("dev_ui.body_limit_bytes", "must be zero or greater")
+		}
 	}
 
 	if cfg.MediaHub.Enabled {
 		validator.requiredString("media_hub.base_url", cfg.MediaHub.BaseURL)
+		validator.path("media_hub.register_path", cfg.MediaHub.RegisterPath)
+		validator.path("media_hub.config_path", cfg.MediaHub.ConfigPath)
+		validator.path("media_hub.heartbeat_path", cfg.MediaHub.HeartbeatPath)
+		validator.path("media_hub.metrics_path", cfg.MediaHub.MetricsPath)
+		validator.path("media_hub.events_path", cfg.MediaHub.EventsPath)
 		validator.duration("media_hub.poll_interval", cfg.MediaHub.PollInterval)
 		validator.duration("media_hub.claim_interval", cfg.MediaHub.ClaimInterval)
 		validator.duration("media_hub.progress_interval", cfg.MediaHub.ProgressInterval)

@@ -38,7 +38,7 @@ import (
 
 // Run starts the Auren Transfer Agent foundation executable.
 //
-// v1.9.1 keeps the production runtime and adds the local Dev Console.
+// v1.13.1 keeps the production runtime and adds the local Dev Console.
 func Run(args []string) error {
 	if len(args) > 0 {
 		switch strings.TrimSpace(args[0]) {
@@ -65,6 +65,7 @@ func runServe(args []string) error {
 	showVersion := flags.Bool("version", false, "print version information")
 	showHelp := flags.Bool("help", false, "print help")
 	configPath := flags.String("config", "", "path to agent YAML configuration")
+	envFile := flags.String("env-file", ".env", "dotenv file with runtime variables")
 	flags.BoolVar(showHelp, "h", false, "print help")
 
 	if err := flags.Parse(args); err != nil {
@@ -81,7 +82,7 @@ func runServe(args []string) error {
 		return nil
 	}
 
-	cfg, err := config.Load(config.LoadOptions{Path: *configPath})
+	cfg, err := config.Load(config.LoadOptions{Path: *configPath, EnvFiles: []string{*envFile}})
 	if err != nil {
 		return err
 	}
@@ -119,7 +120,7 @@ func runServe(args []string) error {
 		return err
 	}
 	downloadMetricsRecorder := download.NewMemoryMetricsRecorder()
-	devUIRecorder := devui.NewRecorder(cfg.DevUI.Retention)
+	devUIRecorder := devui.NewRecorderWithOptions(cfg.DevUI.Retention, cfg.DevUI.CaptureBodies, cfg.DevUI.BodyLimitBytes)
 	uploadPartSize, err := upload.ParsePartSize(cfg.Upload.PartSize)
 	if err != nil {
 		return err
@@ -139,6 +140,14 @@ func runServe(args []string) error {
 			return err
 		}
 		aurenStorageStatus = "configured_v1:" + aurenAdapter.Bucket()
+	}
+	s3StorageStatus := "not_configured"
+	if storage.S3Configured(cfg.Storage.Bucket, cfg.Storage.AccessKeyID, cfg.Storage.SecretAccessKey) {
+		s3Adapter, err := storage.NewS3Adapter(storage.S3Options{Endpoint: cfg.Storage.Endpoint, Bucket: cfg.Storage.Bucket, Region: cfg.Storage.Region, AccessKeyID: cfg.Storage.AccessKeyID, SecretAccessKey: cfg.Storage.SecretAccessKey, SessionToken: cfg.Storage.SessionToken, ForcePathStyle: cfg.Storage.S3ForcePathStyle || cfg.Storage.UsePathStyle, HTTPClient: downloadClient.StandardClient()})
+		if err != nil {
+			return err
+		}
+		s3StorageStatus = "configured:" + s3Adapter.Bucket()
 	}
 
 	httpResolver, err := resolver.NewHTTPResolver(downloadClient)
@@ -170,7 +179,9 @@ func runServe(args []string) error {
 	var mediaHubState mediahub.NodeState
 	var mediaHubClient *mediahub.Client
 	if cfg.MediaHub.Enabled {
-		mediaHubClient, err = mediahub.NewClient(mediahub.ClientOptions{BaseURL: cfg.MediaHub.BaseURL, HMACEnabled: cfg.MediaHub.HMACEnabled, UserAgent: runtime.AppName + "/" + runtime.Version, Trace: devUIRecorder.RecordOutbound})
+		mediaHubClient, err = mediahub.NewClient(mediahub.ClientOptions{BaseURL: cfg.MediaHub.BaseURL, HMACEnabled: cfg.MediaHub.HMACEnabled, UserAgent: runtime.AppName + "/" + runtime.Version, Paths: mediahub.EndpointPaths{Register: cfg.MediaHub.RegisterPath, Config: cfg.MediaHub.ConfigPath, Heartbeat: cfg.MediaHub.HeartbeatPath, Metrics: cfg.MediaHub.MetricsPath, Events: cfg.MediaHub.EventsPath}, Trace: devUIRecorder.RecordOutbound, DetailedTrace: func(trace mediahub.RequestTrace) {
+			devUIRecorder.RecordOutboundDetailed(devui.OutboundTrace{Method: trace.Method, URL: trace.URL, Path: trace.Path, Host: trace.Host, Status: trace.Status, Duration: trace.Duration, RequestBytes: trace.RequestBytes, ResponseBytes: trace.ResponseBytes, Err: trace.Err, ContentType: trace.ContentType, Headers: trace.RequestHeaders, ResponseHeaders: trace.ResponseHeaders, RequestPayload: trace.RequestPayload, ResponsePayload: trace.ResponsePayload, RequestBody: trace.RequestBody, ResponseBody: trace.ResponseBody})
+		}})
 		if err != nil {
 			return err
 		}
@@ -198,6 +209,7 @@ func runServe(args []string) error {
 		DownloadMetrics: downloadMetricsRecorder,
 		Tracker:         transferTracker,
 		Operations:      opsRuntime,
+		Recorder:        devUIRecorder,
 	})
 	if err != nil {
 		return err
@@ -346,7 +358,7 @@ func runServe(args []string) error {
 	eventsAPIOptions := server.EventsAPIOptions{Info: runtime.Info(), Recorder: eventRecorder, MaxEvents: 100}
 	observabilityOptions := server.ObservabilityOptions{Info: runtime.Info(), Heartbeat: heartbeatRecord, Queue: jobQueue, DownloadMetrics: downloadMetricsRecorder, Events: eventRecorder, Traces: traceRecorder, Audit: auditRecorder, Logs: centralLogSink, PrometheusPath: cfg.Metrics.Path, Authenticator: authenticator}
 	devUIOptions := devui.Options{
-		Config:   devui.Config{Enabled: cfg.DevUI.Enabled, Path: cfg.DevUI.Path, Retention: cfg.DevUI.Retention, RefreshInterval: cfg.DevUI.RefreshInterval},
+		Config:   devui.Config{Enabled: cfg.DevUI.Enabled, Path: cfg.DevUI.Path, Retention: cfg.DevUI.Retention, RefreshInterval: cfg.DevUI.RefreshInterval, CaptureBodies: cfg.DevUI.CaptureBodies, BodyLimitBytes: cfg.DevUI.BodyLimitBytes},
 		Recorder: devUIRecorder,
 		Snapshot: func() devui.MetricsSnapshot {
 			transferStats := transferExecutor.Stats()
@@ -360,10 +372,11 @@ func runServe(args []string) error {
 				GeneratedAt:     time.Now().UTC(),
 				Runtime:         runtime.Info(),
 				MediaHub:        map[string]any{"enabled": cfg.MediaHub.Enabled, "base_url": cfg.MediaHub.BaseURL, "node_uuid": state.NodeUUID, "role": cfg.MediaHub.Role, "region": cfg.MediaHub.Region, "capabilities": cfg.MediaHub.Capabilities},
-				Transfer:        map[string]any{"enabled": cfg.MediaHub.TransferEnabled, "claim_enabled": cfg.MediaHub.ClaimEnabled, "work_dir": cfg.MediaHub.WorkDir, "max_concurrent_jobs": transferStats.MaxConcurrentJobs, "active_jobs": transferStats.ActiveJobs, "completed_jobs": transferStats.CompletedJobs, "failed_jobs": transferStats.FailedJobs, "accepted_operations": cfg.MediaHub.AcceptedOperations},
+				Transfer:        map[string]any{"enabled": cfg.MediaHub.TransferEnabled, "claim_enabled": cfg.MediaHub.ClaimEnabled, "work_dir": cfg.MediaHub.WorkDir, "max_concurrent_jobs": transferStats.MaxConcurrentJobs, "active_jobs": transferStats.ActiveJobs, "active_job_details": transferStats.ActiveJobDetails, "completed_jobs": transferStats.CompletedJobs, "failed_jobs": transferStats.FailedJobs, "accepted_operations": cfg.MediaHub.AcceptedOperations},
 				Gateway:         map[string]any{"enabled": cfg.MediaHub.GatewayEnabled, "proxy_enabled": cfg.MediaHub.GatewayProxyEnabled, "redirect_enabled": cfg.MediaHub.GatewayRedirectEnabled, "public_base_url": cfg.MediaHub.PublicBaseURL, "max_sessions": cfg.MediaHub.MaxSessions, "active_sessions": gatewayStats.ActiveSessions, "bytes_sent": gatewayStats.BytesSent, "current_egress_mbps": gatewayStats.CurrentEgressBps / 125000},
 				Queue:           map[string]any{"driver": cfg.Queue.Driver, "length": jobQueue.Len(), "capacity": jobQueue.Capacity()},
 				Download:        downloadMetricsRecorder.Summary(),
+				Storage:         map[string]any{"driver": cfg.Storage.Driver, "endpoint_configured": cfg.Storage.Endpoint != "", "bucket_configured": cfg.Storage.Bucket != "", "s3_configured": storage.S3Configured(cfg.Storage.Bucket, cfg.Storage.AccessKeyID, cfg.Storage.SecretAccessKey), "auren_configured": storage.AurenConfigured(cfg.Storage.Endpoint, cfg.Storage.Bucket), "summary": storageSummary(cfg)},
 				Hardening:       map[string]any{"allowed": opsDecision.Allowed, "reason": opsDecision.Reason, "drain_enabled": cfg.MediaHub.DrainEnabled, "backpressure_enabled": cfg.MediaHub.BackpressureEnabled, "disk_guard_enabled": cfg.MediaHub.DiskGuardEnabled},
 				RequestCounters: devUIRecorder.Counters(),
 				RecentRequests:  devUIRecorder.Snapshot(25),
@@ -465,7 +478,7 @@ func runServe(args []string) error {
 	fmt.Fprintf(os.Stdout, "download: client=%s user_agent=%q redirects=%t max_redirects=%d cookies=%s headers=%s resume=%t streaming=%s multipart=%s checksum=%s retry=%s bandwidth=%s bandwidth_limit=%d metrics=%s metrics_count=%d max_retries=%d retry_backoff=%s chunk_size=%s connect_timeout=%s response_header_timeout=%s idle_timeout=%s\n", download.HTTPClientName, downloadClient.UserAgent(), downloadClient.Redirects().Follow(), downloadClient.Redirects().MaxRedirects(), download.CookieEngineName, download.HeaderEngineName, cfg.Download.ResumeEnabled, download.StreamingEngineName, download.MultipartEngineName, download.SHA256ChecksumName, download.RetryEngineName, download.BandwidthControllerName, downloadBandwidthController.LimitBytesPerSecond(), download.DownloadMetricsName, downloadMetricsRecorder.Count(), downloadRetryPolicy.MaxRetries(), downloadRetryPolicy.Backoff(), cfg.Download.ChunkSize, downloadClient.ConnectTimeout(), downloadClient.ResponseHeaderTimeout(), downloadClient.IdleTimeout())
 	fmt.Fprintf(os.Stdout, "plugins: sdk=%s kinds=%s,%s\n", plugins.SDKVersion, plugins.KindResolver, plugins.KindUploader)
 	fmt.Fprintf(os.Stdout, "upload: interface=%s driver=%s uploader=%s root=%s multipart=%t resume=%s integrity=%s callback=%s part_size=%s part_bytes=%d max_retries=%d retry_backoff=%s\n", upload.InterfaceName, cfg.Upload.Driver, localUploader.Name(), localUploader.Root(), cfg.Upload.MultipartEnabled, upload.ResumeUploadName, upload.IntegrityValidatorName, upload.CallbackEngineName, cfg.Upload.PartSize, uploadPartSize, cfg.Upload.MaxRetries, cfg.Upload.RetryBackoff)
-	fmt.Fprintf(os.Stdout, "storage-adapter: interface=%s local=%s root=%s auren=%s driver=%s endpoint_configured=%t bucket_configured=%t api_key_configured=%t multipart=%t part_size=%s part_bytes=%d contract=auren_storage_v1\n", storage.InterfaceName, localStorageAdapter.Name(), localStorageAdapter.Root(), aurenStorageStatus, cfg.Storage.Driver, cfg.Storage.Endpoint != "", cfg.Storage.Bucket != "", cfg.Storage.APIKey != "", cfg.Upload.MultipartEnabled, cfg.Upload.PartSize, uploadPartSize)
+	fmt.Fprintf(os.Stdout, "storage-adapter: interface=%s local=%s root=%s auren=%s s3=%s driver=%s endpoint_configured=%t bucket_configured=%t api_key_configured=%t access_key_configured=%t multipart=%t part_size=%s part_bytes=%d contract=auren_storage_v1+s3_put_v1\n", storage.InterfaceName, localStorageAdapter.Name(), localStorageAdapter.Root(), aurenStorageStatus, s3StorageStatus, cfg.Storage.Driver, cfg.Storage.Endpoint != "", cfg.Storage.Bucket != "", cfg.Storage.APIKey != "", cfg.Storage.AccessKeyID != "" && cfg.Storage.SecretAccessKey != "", cfg.Upload.MultipartEnabled, cfg.Upload.PartSize, uploadPartSize)
 	fmt.Fprintf(os.Stdout, "resolver: interface=%s registry=%d order=%v default_user_agent=%q follow_redirects=%t max_redirects=%d manifest_limit=%d cloudflare_bypass=false cloud_storage=%s,%s,%s\n", resolver.InterfaceName, resolverRegistry.Len(), resolverRegistry.Names(), cfg.Resolver.DefaultUserAgent, cfg.Resolver.FollowRedirects, cfg.Resolver.MaxRedirects, resolver.DefaultManifestReadLimit, resolver.GoogleDriveResolverName, resolver.MEGAResolverName, resolver.OneDriveResolverName)
 	fmt.Fprintf(os.Stdout, "cluster-queues: interface=%s redis=%s redis_stream=%s redis_group=%s rabbitmq=%s rabbitmq_queue=%s nats=%s nats_subject=%s nats_group=%s active=%s\n", "queue.ClusterQueue", queue.RedisStreamsDriver, cfg.Queue.RedisStream, cfg.Queue.RedisConsumerGroup, queue.RabbitMQDriver, cfg.Queue.RabbitMQQueue, queue.NATSDriver, cfg.Queue.NATSSubject, cfg.Queue.NATSQueueGroup, queueInfo.Driver)
 	fmt.Fprintf(os.Stdout, "cluster: registry=%s agents=%d local=%s load_balancer=%s selected=%s ready=%t leader_election=%s leader=%s found=%t failover=%s assignments=%d unassigned=%d mode=foundation_local\n", cluster.RegistryName, agentRegistry.Len(), localAgent.ID, cluster.LoadBalancerName, loadBalancedAgent.ID, loadBalancerReady, cluster.LeaderElectionName, leaderResult.LeaderID, leaderFound, cluster.FailoverName, len(failoverPlan.Assignments), len(failoverPlan.UnassignedIDs))
@@ -517,16 +530,33 @@ func runServe(args []string) error {
 	return err
 }
 
+func storageSummary(cfg config.Config) string {
+	switch strings.ToLower(strings.TrimSpace(cfg.Storage.Driver)) {
+	case storage.DriverS3:
+		if storage.S3Configured(cfg.Storage.Bucket, cfg.Storage.AccessKeyID, cfg.Storage.SecretAccessKey) {
+			return "s3 configured:" + cfg.Storage.Bucket
+		}
+		return "s3 not fully configured"
+	case storage.DriverAurenStorage:
+		if storage.AurenConfigured(cfg.Storage.Endpoint, cfg.Storage.Bucket) {
+			return "auren configured:" + cfg.Storage.Bucket
+		}
+		return "auren not fully configured"
+	default:
+		return "local:" + cfg.Storage.LocalPath
+	}
+}
+
 func printHelp(out io.Writer) {
 	fmt.Fprintf(out, "%s\n\n", runtime.AppName)
 	fmt.Fprintln(out, "Usage:")
-	fmt.Fprintln(out, "  auren-transfer-agent serve [--config /etc/auren-transfer-agent/agent.yaml]")
-	fmt.Fprintln(out, "  auren-transfer-agent bootstrap --media-hub https://media.example.com --token TOKEN [--start-service]")
-	fmt.Fprintln(out, "  auren-transfer-agent doctor [--config /etc/auren-transfer-agent/agent.yaml]")
-	fmt.Fprintln(out, "  auren-transfer-agent status [--config /etc/auren-transfer-agent/agent.yaml]")
+	fmt.Fprintln(out, "  auren-transfer-agent serve [--env-file .env] [--config /etc/auren-transfer-agent/agent.yaml]")
+	fmt.Fprintln(out, "  auren-transfer-agent bootstrap [--env-file .env] --media-hub https://media.example.com --token TOKEN [--start-service]")
+	fmt.Fprintln(out, "  auren-transfer-agent doctor [--env-file .env] [--config /etc/auren-transfer-agent/agent.yaml]")
+	fmt.Fprintln(out, "  auren-transfer-agent status [--env-file .env] [--config /etc/auren-transfer-agent/agent.yaml]")
 	fmt.Fprintln(out, "  auren-transfer-agent [--config ./configs/agent.yaml] [--version] [--help]")
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Production v1.9.1 supports validated configuration, logging, HTTP APIs, identity, worker engine contracts, real transfer execution, Auren Storage v1 multipart production uploads, public Gateway Runtime, operational hardening, Debian/Ubuntu packaging, signed APT distribution and the local Dev Console for metrics and request tracing.")
+	fmt.Fprintln(out, "Production v1.13.1 supports validated configuration, real transfer execution, detailed Dev Console request/payload tracing, Auren Storage uploads, direct S3 PUT uploads, Gateway Runtime, operational hardening, Debian/Ubuntu packaging and signed APT distribution, root .env configuration and simplified Media Hub node bootstrap.")
 }
 
 func rateLimitValue(enabled bool, configured int) int {

@@ -1,6 +1,6 @@
-# Media Hub Connector — v1.9.1
+# Media Hub Connector — v1.13.1
 
-Auren Transfer Agent v1.1.0 added the Media Hub Connector Foundation. v1.9.1 keeps that contract and uses it for transfer claim/callback execution, production Auren Storage upload results and Gateway Runtime session telemetry. The Agent can now register itself as a Media Hub `edge_node`, persist the issued `node_uuid` and `node_secret`, pull node configuration and send heartbeat, metrics and events through the existing Media Hub Node Agent contract.
+Auren Transfer Agent v1.1.0 added the Media Hub Connector Foundation. v1.13.1 keeps that contract and uses it for transfer claim/callback execution, production Auren Storage upload results and Gateway Runtime session telemetry. The Agent can now register itself as a Media Hub `edge_node`, persist the issued `node_uuid` and `node_secret`, pull node configuration and send heartbeat, metrics and events through the existing Media Hub Node Agent contract.
 
 The connector remains the operational control-plane link: it owns registration, durable node credentials, config pull, heartbeat, metrics and events. The transfer executor and gateway runtime use the same node credentials/HMAC contract.
 
@@ -82,4 +82,4 @@ After registration, bootstrap performs one immediate config pull, heartbeat, met
 - Worker execution now uses the `transfer_executor` handler introduced in v1.2.0.
 - Transfer job claim, progress and completion callbacks are implemented by `internal/transfer` in v1.2.0.
 - Auren Storage production upload adapter alignment was implemented in v1.3.0.
-- Public gateway runtime and session telemetry are implemented in v1.9.1.
+- Public gateway runtime and session telemetry are implemented in v1.13.1.

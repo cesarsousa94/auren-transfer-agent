@@ -1,17 +1,17 @@
-# Signed APT Repository Distribution — v1.9.1
+# Signed APT Repository Distribution — v1.13.1
 
-Auren Transfer Agent v1.9.1 makes the online APT repository the official Linux distribution path. The direct `.deb` remains a build artifact, but production installs should use an HTTPS APT repository with a GPG-signed `Release` file and a public `install-apt.sh` bootstrap script.
+Auren Transfer Agent v1.13.1 makes the online APT repository the official Linux distribution path. The direct `.deb` remains a build artifact, but production installs should use an HTTPS APT repository with a GPG-signed `Release` file and a public `install-apt.sh` bootstrap script.
 
 ## Release artifacts
 
 Running the release pipeline creates:
 
 ```text
-./scripts/release.sh v1.9.1
+./scripts/release.sh v1.13.1
 
-dist/auren-transfer-agent-v1.9.1.zip
-dist/auren-transfer-agent_1.9.1_amd64.deb
-dist/auren-transfer-agent-apt-repo-v1.9.1.tar.gz
+dist/auren-transfer-agent-v1.13.1.zip
+dist/auren-transfer-agent_1.13.1_amd64.deb
+dist/auren-transfer-agent-apt-repo-v1.13.1.tar.gz
 dist/apt/
 ```
 
@@ -19,7 +19,7 @@ The APT repo contains:
 
 ```text
 apt/
-├── pool/main/a/auren-transfer-agent/auren-transfer-agent_1.9.1_amd64.deb
+├── pool/main/a/auren-transfer-agent/auren-transfer-agent_1.13.1_amd64.deb
 ├── dists/stable/Release
 ├── dists/stable/InRelease                  # when signed
 ├── dists/stable/Release.gpg                # when signed
@@ -48,13 +48,13 @@ APT_GPG_KEY_ID="YOUR_GPG_KEY_ID" \
 APT_CHANNELS="stable,edge" \
 APT_PUBLIC_REPO_URL="https://downloads.seudominio.com/agent/apt" \
 APT_PUBLIC_KEY_URL="https://downloads.seudominio.com/agent/apt/auren-transfer-agent.gpg" \
-./scripts/release.sh v1.9.1
+./scripts/release.sh v1.13.1
 ```
 
 For a lab repository only, signing can be skipped:
 
 ```bash
-APT_SIGN=false ./scripts/release.sh v1.9.1
+APT_SIGN=false ./scripts/release.sh v1.13.1
 ```
 
 Production should use signed repositories.

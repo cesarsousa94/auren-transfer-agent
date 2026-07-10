@@ -14,7 +14,7 @@ DESCRIPTION="${APT_DESCRIPTION:-Auren Transfer Agent Debian repository}"
 SIGN_MODE="${APT_SIGN:-auto}"
 REQUIRE_SIGNED="${APT_REQUIRE_SIGNED:-false}"
 GPG_KEY_ID="${APT_GPG_KEY_ID:-}"
-PUBLIC_REPO_URL="${APT_PUBLIC_REPO_URL:-https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent/apt}"
+PUBLIC_REPO_URL="${APT_PUBLIC_REPO_URL:-https://downloads.auren.app/agent/apt}"
 PUBLIC_KEY_URL="${APT_PUBLIC_KEY_URL:-${PUBLIC_REPO_URL%/}/auren-transfer-agent.gpg}"
 VERSION="${VERSION:-}"
 

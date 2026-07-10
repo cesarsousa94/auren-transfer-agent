@@ -36,7 +36,7 @@ func clearAurenEnvironment(t *testing.T) {
 func TestDefaultConfigMatchesLoadWithoutFiles(t *testing.T) {
 	clearAurenEnvironment(t)
 
-	cfg, err := Load(LoadOptions{})
+	cfg, err := Load(LoadOptions{SearchPaths: []string{t.TempDir()}})
 	if err != nil {
 		t.Fatalf("expected defaults without config file, got error: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestDefaultContractsAreDefensiveCopies(t *testing.T) {
 func TestLoadUsesDefaultsWhenNoConfigFileExists(t *testing.T) {
 	clearAurenEnvironment(t)
 
-	cfg, err := Load(LoadOptions{})
+	cfg, err := Load(LoadOptions{SearchPaths: []string{t.TempDir()}})
 	if err != nil {
 		t.Fatalf("expected defaults without config file, got error: %v", err)
 	}
@@ -109,6 +109,24 @@ func TestLoadUsesDefaultsWhenNoConfigFileExists(t *testing.T) {
 	}
 	if cfg.Security.TokenHeader != "Authorization" {
 		t.Fatalf("unexpected token header: %q", cfg.Security.TokenHeader)
+	}
+}
+
+func TestLoadSearchPathsCanIsolateHostEtcConfig(t *testing.T) {
+	clearAurenEnvironment(t)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agent.yaml")
+	if err := os.WriteFile(path, []byte("runtime:\n  environment: test\n"), 0o644); err != nil {
+		t.Fatalf("write isolated config: %v", err)
+	}
+
+	cfg, err := Load(LoadOptions{SearchPaths: []string{dir}})
+	if err != nil {
+		t.Fatalf("load isolated search path config: %v", err)
+	}
+	if cfg.Runtime.Environment != "test" {
+		t.Fatalf("expected isolated search path config, got %q", cfg.Runtime.Environment)
 	}
 }
 
@@ -288,7 +306,7 @@ func TestLoadAppliesEnvironmentOverrides(t *testing.T) {
 	t.Setenv("AUREN_STORAGE_ENDPOINT", "https://storage.example.test")
 	t.Setenv("AUREN_SECURITY_ALLOW_INSECURE_HTTP", "false")
 
-	cfg, err := Load(LoadOptions{})
+	cfg, err := Load(LoadOptions{SearchPaths: []string{t.TempDir()}})
 	if err != nil {
 		t.Fatalf("expected config with env overrides to load, got error: %v", err)
 	}
@@ -426,7 +444,7 @@ func TestEnvironmentOverridesAreValidated(t *testing.T) {
 
 	t.Setenv("AUREN_SERVER_PORT", "0")
 
-	_, err := Load(LoadOptions{})
+	_, err := Load(LoadOptions{SearchPaths: []string{t.TempDir()}})
 	if err == nil {
 		t.Fatalf("expected invalid environment override to fail validation")
 	}
@@ -455,5 +473,37 @@ func TestParseSizeBytesSupportsOfficialUnits(t *testing.T) {
 		if actual != expected {
 			t.Fatalf("expected %q to parse as %d bytes, got %d", input, expected, actual)
 		}
+	}
+}
+
+func TestLoadReadsDotEnvAndAliases(t *testing.T) {
+	clearAurenEnvironment(t)
+
+	dir := t.TempDir()
+	envPath := filepath.Join(dir, ".env")
+	if err := os.WriteFile(envPath, []byte("AUREN_AGENT_MEDIA_HUB_BASE_URL=http://media.test\nAUREN_NODE_REGISTRATION_TOKEN=token-123\nAUREN_MEDIA_HUB_ENABLED=true\nAUREN_MEDIA_HUB_TRANSFER_ENABLED=true\nAUREN_MEDIA_HUB_CLAIM_ENABLED=true\nAUREN_MEDIA_HUB_WORK_DIR=./data/transfer\nAUREN_MEDIA_HUB_CAPABILITIES=transfer,download,upload\nAUREN_MEDIA_HUB_ROLE=worker\n"), 0o600); err != nil {
+		t.Fatalf("write dotenv: %v", err)
+	}
+
+	cfg, err := Load(LoadOptions{SearchPaths: []string{dir}, EnvFiles: []string{envPath}})
+	if err != nil {
+		t.Fatalf("load with dotenv: %v", err)
+	}
+	if cfg.MediaHub.BaseURL != "http://media.test" {
+		t.Fatalf("unexpected media hub base URL: %q", cfg.MediaHub.BaseURL)
+	}
+	if cfg.MediaHub.RegistrationToken != "token-123" {
+		t.Fatalf("unexpected registration token alias: %q", cfg.MediaHub.RegistrationToken)
+	}
+}
+
+func TestDefaultEnvFilesAreDefensiveCopies(t *testing.T) {
+	files := DefaultEnvFiles()
+	if len(files) != 1 || files[0] != ".env" {
+		t.Fatalf("unexpected default env files: %#v", files)
+	}
+	files[0] = "mutated"
+	if DefaultEnvFiles()[0] != ".env" {
+		t.Fatalf("default env files must be returned as a defensive copy")
 	}
 }

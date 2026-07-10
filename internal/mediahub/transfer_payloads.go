@@ -57,6 +57,10 @@ type TransferDestination struct {
 	UploadURL         string            `json:"upload_url,omitempty"`
 	Token             string            `json:"token,omitempty"`
 	TokenHeader       string            `json:"token_header,omitempty"`
+	AccessKeyID       string            `json:"access_key_id,omitempty"`
+	SecretAccessKey   string            `json:"secret_access_key,omitempty"`
+	SessionToken      string            `json:"session_token,omitempty"`
+	ForcePathStyle    bool              `json:"force_path_style,omitempty"`
 	BucketUUID        string            `json:"bucket_uuid,omitempty"`
 	Bucket            string            `json:"bucket,omitempty"`
 	DirectoryPath     string            `json:"directory_path,omitempty"`

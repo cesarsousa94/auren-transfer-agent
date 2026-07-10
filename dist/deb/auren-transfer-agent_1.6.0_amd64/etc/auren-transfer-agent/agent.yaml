@@ -108,8 +108,8 @@ media_hub:
   hmac_enabled: true
   poll_enabled: false
   poll_interval: 2s
-  transfer_enabled: false
-  claim_enabled: false
+  transfer_enabled: true
+  claim_enabled: true
   claim_interval: 2s
   progress_interval: 5s
   control_interval: 10s

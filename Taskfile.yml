@@ -4,8 +4,8 @@ vars:
   APP_NAME: auren-transfer-agent
   CMD_PATH: ./cmd/agent
   BIN_DIR: bin
-  VERSION: v1.9.1
-  IMAGE: auren-transfer-agent:v1.9.1
+  VERSION: v1.10.0
+  IMAGE: auren-transfer-agent:v1.10.0
 
 tasks:
   default:

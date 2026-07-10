@@ -70,6 +70,10 @@ storage:
   region: us-east-1
   local_path: ./data/storage
   use_path_style: true
+  access_key_id: ""
+  secret_access_key: ""
+  session_token: ""
+  s3_force_path_style: true
 
 metrics:
   enabled: false
@@ -100,16 +104,23 @@ security:
   secrets_file: ""
 
 media_hub:
-  enabled: false
+  enabled: true
   base_url: ""
   registration_token: ""
+  bootstrap_token_endpoint: ""
+  bootstrap_token_secret: ""
+  register_path: /api/internal/nodes/register
+  config_path: /api/internal/nodes/config
+  heartbeat_path: /api/internal/nodes/heartbeat
+  metrics_path: /api/internal/nodes/metrics
+  events_path: /api/internal/nodes/events
   node_uuid: ""
   node_secret: ""
   hmac_enabled: true
-  poll_enabled: false
+  poll_enabled: true
   poll_interval: 2s
-  transfer_enabled: false
-  claim_enabled: false
+  transfer_enabled: true
+  claim_enabled: true
   claim_interval: 2s
   progress_interval: 5s
   control_interval: 10s
@@ -153,3 +164,5 @@ dev_ui:
   path: /_auren/dev
   retention: 500
   refresh_interval: 2s
+  capture_bodies: true
+  body_limit_bytes: 8192

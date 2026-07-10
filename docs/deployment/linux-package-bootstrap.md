@@ -1,6 +1,6 @@
-# Linux Package & Zero-Touch Bootstrap — v1.9.1
+# Linux Package & Zero-Touch Bootstrap — v1.13.1
 
-Auren Transfer Agent v1.9.1 turns the Agent into a Debian/Ubuntu-installable service. The package installs a durable systemd runtime, creates the `auren-agent` Linux user, writes canonical directories under `/etc`, `/var/lib`, `/var/log` and `/var/tmp`, and exposes CLI bootstrap commands so a node can register itself against Auren Media Hub using a one-time registration token.
+Auren Transfer Agent v1.13.1 turns the Agent into a Debian/Ubuntu-installable service. The package installs a durable systemd runtime, creates the `auren-agent` Linux user, writes canonical directories under `/etc`, `/var/lib`, `/var/log` and `/var/tmp`, and exposes CLI bootstrap commands so a node can register itself against Auren Media Hub using a one-time registration token.
 
 ## Package layout
 
@@ -44,7 +44,7 @@ curl -fsSL https://downloads.auren.app/agent/install.sh | sudo bash -s -- \
 ## Manual `.deb` install
 
 ```bash
-sudo dpkg -i auren-transfer-agent_1.9.1_amd64.deb
+sudo dpkg -i auren-transfer-agent_1.13.1_amd64.deb
 sudo auren-transfer-agent bootstrap \
   --media-hub=https://media.example.com \
   --token=REGISTRATION_TOKEN \
@@ -97,16 +97,16 @@ auren-transfer-agent --version
 
 ```bash
 make build
-./scripts/build-deb.sh v1.9.1
-./scripts/release.sh v1.9.1
+./scripts/build-deb.sh v1.13.1
+./scripts/release.sh v1.13.1
 ```
 
 Release output includes:
 
 ```text
-dist/auren-transfer-agent-v1.9.1.zip
-dist/auren-transfer-agent_1.9.1_amd64.deb
-dist/auren-transfer-agent_1.9.1_amd64.deb.sha256
+dist/auren-transfer-agent-v1.13.1.zip
+dist/auren-transfer-agent_1.13.1_amd64.deb
+dist/auren-transfer-agent_1.13.1_amd64.deb.sha256
 ```
 
 ## APT repository skeleton
@@ -117,7 +117,7 @@ dist/auren-transfer-agent_1.9.1_amd64.deb.sha256
 
 The result can be published behind `https://downloads.auren.app/agent/apt` and signed with your GPG release key. The script intentionally does not manage private signing keys.
 
-## v1.9.1 distribution note
+## v1.13.1 distribution note
 
 For production, prefer the signed online APT repository documented in `docs/deployment/apt-repository.md`. The `.deb` package remains the underlying installable artifact, but operators should normally install via:
 

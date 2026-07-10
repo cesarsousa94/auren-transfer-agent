@@ -20,27 +20,82 @@ const (
 	EventsPath    = "/api/internal/nodes/events"
 )
 
+// EndpointPaths allows deployments to keep the same auth/identity contract while
+// moving Media Hub internal node endpoints behind a prefix or compatibility route.
+type EndpointPaths struct {
+	Register  string
+	Config    string
+	Heartbeat string
+	Metrics   string
+	Events    string
+}
+
+func (paths EndpointPaths) normalized() EndpointPaths {
+	return EndpointPaths{
+		Register:  defaultPath(paths.Register, RegisterPath),
+		Config:    defaultPath(paths.Config, ConfigPath),
+		Heartbeat: defaultPath(paths.Heartbeat, HeartbeatPath),
+		Metrics:   defaultPath(paths.Metrics, MetricsPath),
+		Events:    defaultPath(paths.Events, EventsPath),
+	}
+}
+
+func defaultPath(value string, fallback string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		value = fallback
+	}
+	return "/" + strings.TrimLeft(value, "/")
+}
+
 // ClientOptions configures the Media Hub HTTP client.
 type ClientOptions struct {
-	BaseURL     string
-	HTTPClient  *http.Client
-	HMACEnabled bool
-	UserAgent   string
-	Now         func() time.Time
-	Trace       RequestTraceFunc
+	BaseURL       string
+	HTTPClient    *http.Client
+	HMACEnabled   bool
+	UserAgent     string
+	Now           func() time.Time
+	Trace         RequestTraceFunc
+	DetailedTrace RequestDetailedTraceFunc
+	Paths         EndpointPaths
 }
 
 // RequestTraceFunc receives a compact diagnostic trace for outbound Media Hub requests.
 type RequestTraceFunc func(method string, path string, status int, duration time.Duration, bytes int64, err error)
 
+// RequestDetailedTraceFunc receives a rich sanitized trace for the local Dev Console.
+type RequestDetailedTraceFunc func(RequestTrace)
+
+// RequestTrace is a rich outbound Media Hub request/response trace.
+type RequestTrace struct {
+	Method          string
+	URL             string
+	Path            string
+	Host            string
+	Status          int
+	Duration        time.Duration
+	RequestBytes    int64
+	ResponseBytes   int64
+	Err             error
+	ContentType     string
+	RequestHeaders  map[string]string
+	ResponseHeaders map[string]string
+	RequestPayload  any
+	ResponsePayload any
+	RequestBody     []byte
+	ResponseBody    []byte
+}
+
 // Client is a small typed client for the Media Hub NodeAgentContractService.
 type Client struct {
-	baseURL     *url.URL
-	httpClient  *http.Client
-	hmacEnabled bool
-	userAgent   string
-	now         func() time.Time
-	trace       RequestTraceFunc
+	baseURL       *url.URL
+	httpClient    *http.Client
+	hmacEnabled   bool
+	userAgent     string
+	now           func() time.Time
+	trace         RequestTraceFunc
+	detailedTrace RequestDetailedTraceFunc
+	paths         EndpointPaths
 }
 
 // NewClient creates a validated Media Hub client.
@@ -71,7 +126,7 @@ func NewClient(options ClientOptions) (*Client, error) {
 	if userAgent == "" {
 		userAgent = "AurenTransferAgent"
 	}
-	return &Client{baseURL: parsed, httpClient: client, hmacEnabled: options.HMACEnabled, userAgent: userAgent, now: now, trace: options.Trace}, nil
+	return &Client{baseURL: parsed, httpClient: client, hmacEnabled: options.HMACEnabled, userAgent: userAgent, now: now, trace: options.Trace, detailedTrace: options.DetailedTrace, paths: options.Paths.normalized()}, nil
 }
 
 // Register registers a local Agent as a Media Hub edge node using a one-time token.
@@ -80,7 +135,7 @@ func (client *Client) Register(ctx context.Context, request RegistrationPayload)
 		return RegistrationResult{}, fmt.Errorf("media hub registration_token is required")
 	}
 	var response map[string]any
-	if err := client.doJSON(ctx, http.MethodPost, RegisterPath, request, NodeState{}, false, &response); err != nil {
+	if err := client.doJSON(ctx, http.MethodPost, client.paths.Register, request, NodeState{}, false, &response); err != nil {
 		return RegistrationResult{}, err
 	}
 	result, err := ParseRegistrationResult(response)
@@ -93,7 +148,7 @@ func (client *Client) Register(ctx context.Context, request RegistrationPayload)
 // FetchConfig pulls node configuration from the Media Hub.
 func (client *Client) FetchConfig(ctx context.Context, state NodeState) (ConfigResult, error) {
 	var response map[string]any
-	if err := client.doJSON(ctx, http.MethodGet, ConfigPath, nil, state, true, &response); err != nil {
+	if err := client.doJSON(ctx, http.MethodGet, client.paths.Config, nil, state, true, &response); err != nil {
 		return ConfigResult{}, err
 	}
 	return ParseConfigResult(response), nil
@@ -102,19 +157,19 @@ func (client *Client) FetchConfig(ctx context.Context, state NodeState) (ConfigR
 // SendHeartbeat submits the current Agent heartbeat.
 func (client *Client) SendHeartbeat(ctx context.Context, state NodeState, payload HeartbeatPayload) error {
 	var response map[string]any
-	return client.doJSON(ctx, http.MethodPost, HeartbeatPath, payload, state, true, &response)
+	return client.doJSON(ctx, http.MethodPost, client.paths.Heartbeat, payload, state, true, &response)
 }
 
 // SendMetrics submits periodic node metrics.
 func (client *Client) SendMetrics(ctx context.Context, state NodeState, payload MetricsPayload) error {
 	var response map[string]any
-	return client.doJSON(ctx, http.MethodPost, MetricsPath, payload, state, true, &response)
+	return client.doJSON(ctx, http.MethodPost, client.paths.Metrics, payload, state, true, &response)
 }
 
 // SendEvents submits batched node events.
 func (client *Client) SendEvents(ctx context.Context, state NodeState, payload EventsPayload) error {
 	var response map[string]any
-	return client.doJSON(ctx, http.MethodPost, EventsPath, payload, state, true, &response)
+	return client.doJSON(ctx, http.MethodPost, client.paths.Events, payload, state, true, &response)
 }
 
 // SendDrainStarted tells Media Hub this node must stop receiving new work.
@@ -233,13 +288,21 @@ func (client *Client) doJSON(ctx context.Context, method string, path string, in
 	statusCode := 0
 	responseBytes := int64(0)
 	var traceErr error
+	var endpoint string
+	var body []byte
+	var responsePayload any
+	var responseHeaders map[string]string
+	var responseBody []byte
 	defer func() {
+		duration := time.Since(started)
 		if client.trace != nil {
-			client.trace(method, path, statusCode, time.Since(started), responseBytes, traceErr)
+			client.trace(method, path, statusCode, duration, responseBytes, traceErr)
+		}
+		if client.detailedTrace != nil {
+			client.detailedTrace(RequestTrace{Method: method, URL: endpoint, Path: path, Host: hostFromURL(endpoint), Status: statusCode, Duration: duration, RequestBytes: int64(len(body)), ResponseBytes: responseBytes, Err: traceErr, ContentType: "application/json", RequestHeaders: map[string]string{"Accept": "application/json", "Content-Type": contentTypeFor(input), "User-Agent": client.userAgent}, ResponseHeaders: responseHeaders, RequestPayload: input, ResponsePayload: responsePayload, RequestBody: body, ResponseBody: responseBody})
 		}
 	}()
-	endpoint := client.resolve(path)
-	var body []byte
+	endpoint = client.resolve(path)
 	var err error
 	if input != nil {
 		body, err = json.Marshal(input)
@@ -274,6 +337,14 @@ func (client *Client) doJSON(ctx context.Context, method string, path string, in
 	limited := io.LimitReader(resp.Body, 4<<20)
 	payload, err := io.ReadAll(limited)
 	responseBytes = int64(len(payload))
+	responseBody = payload
+	responseHeaders = flattenHeaders(resp.Header)
+	if len(bytes.TrimSpace(payload)) > 0 {
+		var decoded any
+		if json.Unmarshal(payload, &decoded) == nil {
+			responsePayload = decoded
+		}
+	}
 	if err != nil {
 		traceErr = fmt.Errorf("read media hub response: %w", err)
 		return traceErr
@@ -290,6 +361,32 @@ func (client *Client) doJSON(ctx context.Context, method string, path string, in
 		return traceErr
 	}
 	return nil
+}
+
+func contentTypeFor(input any) string {
+	if input == nil {
+		return ""
+	}
+	return "application/json"
+}
+
+func hostFromURL(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return parsed.Host
+}
+
+func flattenHeaders(headers http.Header) map[string]string {
+	if len(headers) == 0 {
+		return nil
+	}
+	out := map[string]string{}
+	for key, values := range headers {
+		out[key] = strings.Join(values, ",")
+	}
+	return out
 }
 
 func (client *Client) resolve(path string) string {

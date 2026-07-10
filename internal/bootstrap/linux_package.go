@@ -1,12 +1,15 @@
 package bootstrap
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,28 +32,31 @@ const (
 )
 
 type bootstrapOptions struct {
-	ConfigPath        string
-	MediaHubURL       string
-	RegistrationToken string
-	Role              string
-	Region            string
-	AvailabilityZone  string
-	PublicBaseURL     string
-	HealthURL         string
-	DataDir           string
-	WorkDir           string
-	LogDir            string
-	ServerHost        string
-	ServerPort        int
-	MaxConcurrentJobs int
-	MaxSessions       int
-	MaxEgressMbps     int
-	EnableGateway     bool
-	DisableTransfer   bool
-	SkipRegister      bool
-	StartService      bool
-	SystemdUnit       string
-	DryRun            bool
+	ConfigPath             string
+	EnvFile                string
+	MediaHubURL            string
+	RegistrationToken      string
+	BootstrapTokenEndpoint string
+	BootstrapTokenSecret   string
+	Role                   string
+	Region                 string
+	AvailabilityZone       string
+	PublicBaseURL          string
+	HealthURL              string
+	DataDir                string
+	WorkDir                string
+	LogDir                 string
+	ServerHost             string
+	ServerPort             int
+	MaxConcurrentJobs      int
+	MaxSessions            int
+	MaxEgressMbps          int
+	EnableGateway          bool
+	DisableTransfer        bool
+	SkipRegister           bool
+	StartService           bool
+	SystemdUnit            string
+	DryRun                 bool
 }
 
 func runBootstrap(args []string) error {
@@ -58,8 +64,11 @@ func runBootstrap(args []string) error {
 	flags.SetOutput(io.Discard)
 	options := bootstrapOptions{}
 	flags.StringVar(&options.ConfigPath, "config", linuxDefaultConfigPath, "config file to write")
+	flags.StringVar(&options.EnvFile, "env-file", ".env", "dotenv file with bootstrap/runtime variables")
 	flags.StringVar(&options.MediaHubURL, "media-hub", "", "Auren Media Hub base URL")
 	flags.StringVar(&options.RegistrationToken, "token", "", "one-time Media Hub registration token")
+	flags.StringVar(&options.BootstrapTokenEndpoint, "token-endpoint", "", "optional endpoint that returns a one-time registration token")
+	flags.StringVar(&options.BootstrapTokenSecret, "token-secret", "", "optional shared secret used when requesting a registration token")
 	flags.StringVar(&options.Role, "role", "hybrid", "node role: worker, gateway, edge or hybrid")
 	flags.StringVar(&options.Region, "region", "sa-east-1", "node region")
 	flags.StringVar(&options.AvailabilityZone, "availability-zone", "", "availability zone")
@@ -84,12 +93,26 @@ func runBootstrap(args []string) error {
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
+	visited := map[string]bool{}
+	flags.Visit(func(flag *flag.Flag) { visited[flag.Name] = true })
+	if err := config.LoadEnvFiles([]string{options.EnvFile}); err != nil {
+		return err
+	}
+	applyBootstrapEnv(&options, visited)
 	if *showHelp {
 		printBootstrapHelp(os.Stdout)
 		return nil
 	}
 	if err := validateBootstrapOptions(options); err != nil {
 		return err
+	}
+	if strings.TrimSpace(options.RegistrationToken) == "" && !options.SkipRegister && strings.TrimSpace(options.BootstrapTokenEndpoint) != "" {
+		token, err := requestBootstrapRegistrationToken(options)
+		if err != nil {
+			return err
+		}
+		options.RegistrationToken = token
+		fmt.Fprintln(os.Stdout, "media-hub: registration token acquired from token endpoint")
 	}
 	cfg, err := bootstrapConfig(options)
 	if err != nil {
@@ -105,19 +128,23 @@ func runBootstrap(args []string) error {
 	if err := ensureLinuxRuntimeDirs(cfg, options); err != nil {
 		return err
 	}
-	if err := writeAgentConfig(options.ConfigPath, cfg); err != nil {
-		return err
-	}
-	fmt.Fprintf(os.Stdout, "config: written %s\n", options.ConfigPath)
 	if !options.SkipRegister {
 		state, err := registerBootstrapNode(cfg)
 		if err != nil {
 			return err
 		}
+		cfg.MediaHub.NodeUUID = state.NodeUUID
+		cfg.MediaHub.NodeSecret = ""
+		cfg.MediaHub.RegistrationToken = ""
+		cfg.MediaHub.BootstrapTokenSecret = ""
 		fmt.Fprintf(os.Stdout, "media-hub: registered node_uuid=%s state=%s\n", state.NodeUUID, mediahub.DefaultStatePath(cfg.Runtime.DataDir))
 	} else {
 		fmt.Fprintln(os.Stdout, "media-hub: registration skipped")
 	}
+	if err := writeAgentConfig(options.ConfigPath, cfg); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stdout, "config: written %s\n", options.ConfigPath)
 	if options.StartService {
 		if !systemdManageable() {
 			fmt.Fprintln(os.Stdout, "systemd: not available as PID 1; service start skipped")
@@ -140,6 +167,7 @@ func runDoctor(args []string) error {
 	flags := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	configPath := flags.String("config", linuxDefaultConfigPath, "config file to validate")
+	envFile := flags.String("env-file", ".env", "dotenv file with runtime variables")
 	online := flags.Bool("online", false, "also test HTTP connectivity to Media Hub and local health")
 	showHelp := flags.Bool("help", false, "print help")
 	flags.BoolVar(showHelp, "h", false, "print help")
@@ -150,7 +178,7 @@ func runDoctor(args []string) error {
 		fmt.Fprintln(os.Stdout, "Usage: auren-transfer-agent doctor [--config /etc/auren-transfer-agent/agent.yaml] [--online]")
 		return nil
 	}
-	cfg, err := config.Load(config.LoadOptions{Path: *configPath})
+	cfg, err := config.Load(config.LoadOptions{Path: *configPath, EnvFiles: []string{*envFile}})
 	if err != nil {
 		return err
 	}
@@ -209,6 +237,7 @@ func runStatus(args []string) error {
 	flags := flag.NewFlagSet("status", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	configPath := flags.String("config", linuxDefaultConfigPath, "config file to inspect")
+	envFile := flags.String("env-file", ".env", "dotenv file with runtime variables")
 	showHelp := flags.Bool("help", false, "print help")
 	flags.BoolVar(showHelp, "h", false, "print help")
 	if err := flags.Parse(args); err != nil {
@@ -218,7 +247,7 @@ func runStatus(args []string) error {
 		fmt.Fprintln(os.Stdout, "Usage: auren-transfer-agent status [--config /etc/auren-transfer-agent/agent.yaml]")
 		return nil
 	}
-	cfg, err := config.Load(config.LoadOptions{Path: *configPath})
+	cfg, err := config.Load(config.LoadOptions{Path: *configPath, EnvFiles: []string{*envFile}})
 	if err != nil {
 		return err
 	}
@@ -241,6 +270,172 @@ func runStatus(args []string) error {
 	return nil
 }
 
+func applyBootstrapEnv(options *bootstrapOptions, explicit map[string]bool) {
+	if options == nil {
+		return
+	}
+	setString := func(flagName string, target *string, names ...string) {
+		if explicit[flagName] {
+			return
+		}
+		for _, name := range names {
+			if value, ok := os.LookupEnv(name); ok && strings.TrimSpace(value) != "" {
+				*target = strings.TrimSpace(value)
+				return
+			}
+		}
+	}
+	setInt := func(flagName string, target *int, names ...string) {
+		if explicit[flagName] {
+			return
+		}
+		for _, name := range names {
+			value := strings.TrimSpace(os.Getenv(name))
+			if value == "" {
+				continue
+			}
+			if parsed, err := strconv.Atoi(value); err == nil {
+				*target = parsed
+				return
+			}
+		}
+	}
+	setBool := func(flagName string, target *bool, names ...string) {
+		if explicit[flagName] {
+			return
+		}
+		for _, name := range names {
+			value := strings.TrimSpace(os.Getenv(name))
+			if value == "" {
+				continue
+			}
+			if parsed, err := strconv.ParseBool(value); err == nil {
+				*target = parsed
+				return
+			}
+		}
+	}
+
+	setString("media-hub", &options.MediaHubURL, "AUREN_MEDIA_HUB_BASE_URL", "AUREN_AGENT_MEDIA_HUB_BASE_URL", "AUREN_MEDIA_HUB_URL", "MEDIA_HUB_URL")
+	setString("token", &options.RegistrationToken, "AUREN_MEDIA_HUB_REGISTRATION_TOKEN", "AUREN_NODE_REGISTRATION_TOKEN", "AUREN_AGENT_REGISTRATION_TOKEN", "AUREN_REGISTRATION_TOKEN", "REGISTRATION_TOKEN")
+	setString("token-endpoint", &options.BootstrapTokenEndpoint, "AUREN_MEDIA_HUB_BOOTSTRAP_TOKEN_ENDPOINT", "AUREN_BOOTSTRAP_TOKEN_ENDPOINT", "AUREN_NODE_TOKEN_ENDPOINT", "MEDIA_HUB_NODE_TOKEN_ENDPOINT")
+	setString("token-secret", &options.BootstrapTokenSecret, "AUREN_MEDIA_HUB_BOOTSTRAP_TOKEN_SECRET", "AUREN_BOOTSTRAP_TOKEN_SECRET", "AUREN_NODE_TOKEN_SECRET", "MEDIA_HUB_NODE_TOKEN_SECRET")
+	setString("role", &options.Role, "AUREN_AGENT_ROLE", "AUREN_NODE_ROLE")
+	setString("region", &options.Region, "AUREN_AGENT_REGION", "AUREN_NODE_REGION", "AWS_REGION", "AWS_DEFAULT_REGION")
+	setString("availability-zone", &options.AvailabilityZone, "AUREN_AGENT_AVAILABILITY_ZONE", "AUREN_NODE_AVAILABILITY_ZONE")
+	setString("public-base-url", &options.PublicBaseURL, "AUREN_AGENT_PUBLIC_BASE_URL", "AUREN_NODE_PUBLIC_BASE_URL")
+	setString("health-url", &options.HealthURL, "AUREN_AGENT_HEALTH_URL", "AUREN_NODE_HEALTH_URL")
+	setString("data-dir", &options.DataDir, "AUREN_RUNTIME_DATA_DIR", "AUREN_AGENT_DATA_DIR")
+	setString("work-dir", &options.WorkDir, "AUREN_MEDIA_HUB_WORK_DIR", "AUREN_AGENT_WORK_DIR")
+	setString("log-dir", &options.LogDir, "AUREN_AGENT_LOG_DIR", "AUREN_LOG_DIR")
+	setString("server-host", &options.ServerHost, "AUREN_SERVER_HOST", "AUREN_AGENT_SERVER_HOST")
+	setInt("server-port", &options.ServerPort, "AUREN_SERVER_PORT", "AUREN_AGENT_SERVER_PORT")
+	setInt("max-concurrent-jobs", &options.MaxConcurrentJobs, "AUREN_MEDIA_HUB_MAX_CONCURRENT_JOBS", "AUREN_AGENT_MAX_CONCURRENT_JOBS")
+	setInt("max-sessions", &options.MaxSessions, "AUREN_MEDIA_HUB_MAX_SESSIONS", "AUREN_AGENT_MAX_SESSIONS")
+	setInt("max-egress-mbps", &options.MaxEgressMbps, "AUREN_MEDIA_HUB_MAX_EGRESS_MBPS", "AUREN_AGENT_MAX_EGRESS_MBPS")
+	setBool("enable-gateway", &options.EnableGateway, "AUREN_MEDIA_HUB_GATEWAY_ENABLED", "AUREN_AGENT_ENABLE_GATEWAY")
+	setBool("disable-transfer", &options.DisableTransfer, "AUREN_AGENT_DISABLE_TRANSFER")
+	setBool("start-service", &options.StartService, "AUREN_AGENT_START_SERVICE")
+}
+
+func requestBootstrapRegistrationToken(options bootstrapOptions) (string, error) {
+	endpoint, err := resolveTokenEndpoint(options.MediaHubURL, options.BootstrapTokenEndpoint)
+	if err != nil {
+		return "", err
+	}
+	payload := map[string]any{
+		"role":              normalizeRole(options.Role, options.EnableGateway, !options.DisableTransfer),
+		"region":            strings.TrimSpace(options.Region),
+		"availability_zone": strings.TrimSpace(options.AvailabilityZone),
+		"base_url":          strings.TrimRight(strings.TrimSpace(options.PublicBaseURL), "/"),
+		"health_url":        strings.TrimSpace(options.HealthURL),
+		"max_sessions":      options.MaxSessions,
+		"max_egress_mbps":   options.MaxEgressMbps,
+		"capabilities":      strings.Split(bootstrapCapabilities(options.EnableGateway, !options.DisableTransfer), ","),
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", runtime.AppName+"/"+runtime.Version)
+	if strings.TrimSpace(options.BootstrapTokenSecret) != "" {
+		req.Header.Set("X-Auren-Bootstrap-Secret", strings.TrimSpace(options.BootstrapTokenSecret))
+	}
+	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
+	if err != nil {
+		return "", fmt.Errorf("request bootstrap registration token: %w", err)
+	}
+	defer resp.Body.Close()
+	response, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return "", fmt.Errorf("read bootstrap token response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("bootstrap token endpoint returned HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(response)))
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(response, &decoded); err != nil {
+		return "", fmt.Errorf("decode bootstrap token response: %w", err)
+	}
+	token := firstTokenString(decoded, "registration_token", "token", "node_registration_token")
+	for _, container := range []string{"data", "node", "registration"} {
+		if token != "" {
+			break
+		}
+		if nested, ok := decoded[container].(map[string]any); ok {
+			token = firstTokenString(nested, "registration_token", "token", "node_registration_token")
+		}
+	}
+	if strings.TrimSpace(token) == "" {
+		return "", fmt.Errorf("bootstrap token response did not include registration_token")
+	}
+	return strings.TrimSpace(token), nil
+}
+
+func resolveTokenEndpoint(baseURL string, endpoint string) (string, error) {
+	endpoint = strings.TrimSpace(endpoint)
+	if endpoint == "" {
+		return "", fmt.Errorf("bootstrap token endpoint is required")
+	}
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return "", err
+	}
+	if parsed.IsAbs() {
+		return parsed.String(), nil
+	}
+	base, err := url.Parse(strings.TrimRight(strings.TrimSpace(baseURL), "/"))
+	if err != nil {
+		return "", err
+	}
+	if base.Scheme == "" || base.Host == "" {
+		return "", fmt.Errorf("media hub base URL is required to resolve relative token endpoint")
+	}
+	path := "/" + strings.TrimLeft(endpoint, "/")
+	base.Path = strings.TrimRight(base.Path, "/") + path
+	base.RawQuery = ""
+	return base.String(), nil
+}
+
+func firstTokenString(values map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if raw, ok := values[key]; ok {
+			if text, ok := raw.(string); ok && strings.TrimSpace(text) != "" {
+				return strings.TrimSpace(text)
+			}
+		}
+	}
+	return ""
+}
+
 func validateBootstrapOptions(options bootstrapOptions) error {
 	if strings.TrimSpace(options.ConfigPath) == "" {
 		return fmt.Errorf("--config is required")
@@ -248,8 +443,8 @@ func validateBootstrapOptions(options bootstrapOptions) error {
 	if strings.TrimSpace(options.MediaHubURL) == "" {
 		return fmt.Errorf("--media-hub is required")
 	}
-	if strings.TrimSpace(options.RegistrationToken) == "" && !options.SkipRegister {
-		return fmt.Errorf("--token is required unless --skip-register is set")
+	if strings.TrimSpace(options.RegistrationToken) == "" && strings.TrimSpace(options.BootstrapTokenEndpoint) == "" && !options.SkipRegister {
+		return fmt.Errorf("--token or --token-endpoint is required unless --skip-register is set")
 	}
 	if options.EnableGateway && strings.TrimSpace(options.PublicBaseURL) == "" {
 		return fmt.Errorf("--public-base-url is required when --enable-gateway is set")
@@ -285,6 +480,8 @@ func bootstrapConfig(options bootstrapOptions) (config.Config, error) {
 	cfg.DevUI.Path = "/_auren/dev"
 	cfg.DevUI.Retention = 1000
 	cfg.DevUI.RefreshInterval = "2s"
+	cfg.DevUI.CaptureBodies = true
+	cfg.DevUI.BodyLimitBytes = 8192
 	cfg.Worker.Enabled = true
 	cfg.Worker.Concurrency = maxInt(1, options.MaxConcurrentJobs)
 	cfg.Download.TempDir = filepath.Join(linuxDefaultTempDir, "downloads")
@@ -292,6 +489,8 @@ func bootstrapConfig(options bootstrapOptions) (config.Config, error) {
 	cfg.MediaHub.Enabled = true
 	cfg.MediaHub.BaseURL = strings.TrimRight(strings.TrimSpace(options.MediaHubURL), "/")
 	cfg.MediaHub.RegistrationToken = strings.TrimSpace(options.RegistrationToken)
+	cfg.MediaHub.BootstrapTokenEndpoint = strings.TrimSpace(options.BootstrapTokenEndpoint)
+	cfg.MediaHub.BootstrapTokenSecret = strings.TrimSpace(options.BootstrapTokenSecret)
 	cfg.MediaHub.HMACEnabled = true
 	cfg.MediaHub.PollEnabled = true
 	cfg.MediaHub.TransferEnabled = !options.DisableTransfer
@@ -346,7 +545,7 @@ func registerBootstrapNode(cfg config.Config) (mediahub.NodeState, error) {
 	if err != nil {
 		return mediahub.NodeState{}, err
 	}
-	client, err := mediahub.NewClient(mediahub.ClientOptions{BaseURL: cfg.MediaHub.BaseURL, HMACEnabled: cfg.MediaHub.HMACEnabled, UserAgent: runtime.AppName + "/" + runtime.Version})
+	client, err := mediahub.NewClient(mediahub.ClientOptions{BaseURL: cfg.MediaHub.BaseURL, HMACEnabled: cfg.MediaHub.HMACEnabled, UserAgent: runtime.AppName + "/" + runtime.Version, Paths: mediahub.EndpointPaths{Register: cfg.MediaHub.RegisterPath, Config: cfg.MediaHub.ConfigPath, Heartbeat: cfg.MediaHub.HeartbeatPath, Metrics: cfg.MediaHub.MetricsPath, Events: cfg.MediaHub.EventsPath}})
 	if err != nil {
 		return mediahub.NodeState{}, err
 	}
@@ -465,6 +664,10 @@ func renderAgentYAML(cfg config.Config) string {
 	line("  region: %q", cfg.Storage.Region)
 	line("  local_path: %q", cfg.Storage.LocalPath)
 	line("  use_path_style: %t", cfg.Storage.UsePathStyle)
+	line("  access_key_id: %q", cfg.Storage.AccessKeyID)
+	line("  secret_access_key: %q", cfg.Storage.SecretAccessKey)
+	line("  session_token: %q", cfg.Storage.SessionToken)
+	line("  s3_force_path_style: %t", cfg.Storage.S3ForcePathStyle)
 	line("metrics:")
 	line("  enabled: %t", cfg.Metrics.Enabled)
 	line("  host: %q", cfg.Metrics.Host)
@@ -495,10 +698,19 @@ func renderAgentYAML(cfg config.Config) string {
 	line("  path: %q", cfg.DevUI.Path)
 	line("  retention: %d", cfg.DevUI.Retention)
 	line("  refresh_interval: %q", cfg.DevUI.RefreshInterval)
+	line("  capture_bodies: %t", cfg.DevUI.CaptureBodies)
+	line("  body_limit_bytes: %d", cfg.DevUI.BodyLimitBytes)
 	line("media_hub:")
 	line("  enabled: %t", cfg.MediaHub.Enabled)
 	line("  base_url: %q", cfg.MediaHub.BaseURL)
 	line("  registration_token: %q", cfg.MediaHub.RegistrationToken)
+	line("  bootstrap_token_endpoint: %q", cfg.MediaHub.BootstrapTokenEndpoint)
+	line("  bootstrap_token_secret: %q", cfg.MediaHub.BootstrapTokenSecret)
+	line("  register_path: %q", cfg.MediaHub.RegisterPath)
+	line("  config_path: %q", cfg.MediaHub.ConfigPath)
+	line("  heartbeat_path: %q", cfg.MediaHub.HeartbeatPath)
+	line("  metrics_path: %q", cfg.MediaHub.MetricsPath)
+	line("  events_path: %q", cfg.MediaHub.EventsPath)
 	line("  node_uuid: %q", cfg.MediaHub.NodeUUID)
 	line("  node_secret: %q", cfg.MediaHub.NodeSecret)
 	line("  hmac_enabled: %t", cfg.MediaHub.HMACEnabled)
@@ -635,7 +847,7 @@ func maxInt(a, b int) int {
 
 func printBootstrapHelp(out io.Writer) {
 	fmt.Fprintln(out, "Usage:")
-	fmt.Fprintln(out, "  auren-transfer-agent bootstrap --media-hub https://media.example.com --token TOKEN [options]")
+	fmt.Fprintln(out, "  auren-transfer-agent bootstrap --env-file .env [--media-hub https://media.example.com --token TOKEN] [options]")
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Common options:")
 	fmt.Fprintln(out, "  --config /etc/auren-transfer-agent/agent.yaml")

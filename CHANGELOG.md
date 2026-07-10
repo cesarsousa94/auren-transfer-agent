@@ -1,6 +1,61 @@
+## v1.13.1 — Docker Bootstrap Permission Hotfix
+
+- Fixes Docker auto-bootstrap trying to create `/var/log/auren-transfer-agent` while running as non-root.
+- Adds `AUREN_AGENT_LOG_DIR` and passes `--log-dir` to bootstrap in the Docker entrypoint.
+- Creates `/var/lib/auren-transfer-agent/logs` in the Docker image/volume.
+
+## v1.13.1 — Docker Auto Bootstrap Runtime
+
+- Adds `docker/entrypoint.sh` to automatically bootstrap the Agent before `serve` when the container starts.
+- Docker now supports a no-manual-command flow: read env, request/use registration token, register node, persist `node_uuid/node_secret`, then start runtime.
+- Adds `AUREN_DOCKER_AUTO_BOOTSTRAP` and `AUREN_DOCKER_FORCE_BOOTSTRAP`.
+- Docker Compose now consumes the root `.env`, defaults the bootstrap token endpoint to `/api/internal/nodes/bootstrap-token`, persists node state in a named volume and exposes the Dev Console.
+- Dockerfile now uses the entrypoint and fixes ownership of `/etc/auren-transfer-agent` for the non-root `auren` user.
+- Bootstrap env alias handling now recognizes canonical `AUREN_MEDIA_HUB_BOOTSTRAP_TOKEN_ENDPOINT` and `AUREN_MEDIA_HUB_BOOTSTRAP_TOKEN_SECRET`.
+- Adds `docs/deployment/docker-auto-bootstrap.md` and tests for the Docker auto-bootstrap contract.
+
+## v1.13.1 — Operational Dev Console & Panel Controls
+
+## v1.13.1 — Env Bootstrap & Node Auth Simplification
+
+- Added root dotenv examples: `.env.example`, `env.example` and `env.exemplo`.
+- Added `--env-file` support to `serve`, `bootstrap`, `doctor` and `status`.
+- Added bootstrap aliases for Media Hub URL, node registration token, role, region and public URLs.
+- Added configurable Media Hub node endpoint paths for register/config/heartbeat/metrics/events.
+- Added optional token-endpoint bootstrap flow for future Media Hub token issuance.
+- Bootstrap now persists `node_uuid/node_secret` in `node.json` and rewrites `agent.yaml` without the one-time registration token after successful registration.
+
+- Rebuilds the Local Dev Console as an operational dashboard instead of a fast scrolling log stream.
+- Adds grouped views for active jobs, simultaneous downloads/uploads, queue/claim pressure, endpoint usage, function usage and transfer stages.
+- Adds `/_auren/dev/api/overview` for endpoint/function/event/job aggregation.
+- Adds `/_auren/dev/settings` for panel preferences saved in browser localStorage.
+- Adds pause/resume, manual refresh, refresh interval, max rows, function filter and noisy-call hiding for heartbeat/metrics/control/dev-console requests.
+- Tracks active job details in the transfer tracker: operation, stage, source URL, destination driver, object path, current bytes, total bytes, percent and speed.
+- Infers job UUID, stage, destination and object path from Media Hub request/response payloads so transfer callbacks are easier to follow.
+- Keeps sensitive data sanitized while making payloads, stages and operational flow easier to inspect during development.
+
 # Changelog
 
-## v1.9.1 — Dev Console JSON Route Hotfix
+## v1.10.0 — Detailed Request Inspector & Direct S3 Upload
+
+- Expands the Local Dev Console request page into a detailed request/activity inspector.
+- Shows inbound Agent requests, outbound Media Hub requests, transfer lifecycle events, job UUID, operation, stage, source URL, destination driver, object path, sanitized headers and bounded sanitized JSON/body previews.
+- Adds rich Media Hub client tracing with request payloads and response payloads so claim, started, progress, completed, failed, gateway resolve and heartbeat calls are visible in development.
+- Adds transfer-stage events for claim, download start, upload start and upload completion so a requested Media Hub download can be followed inside `/_auren/dev/requests`.
+- Adds direct S3 upload adapter using AWS Signature V4 `PUT Object`, including custom endpoint support for AWS S3, MinIO and S3-compatible storage, metadata headers, ACL/visibility mapping and checksum propagation.
+- Adds `storage.driver=s3` plus `storage.access_key_id`, `storage.secret_access_key`, `storage.session_token` and `storage.s3_force_path_style`.
+- Keeps Auren Storage v1 adapter available; S3 is an additional upload target for testing and future offload strategies.
+- Adds tests for S3 signing/upload and detailed Dev Console tracing.
+
+## v1.10.0 — Test Isolation & Debian Script Mode Hotfix
+
+- Fixes `go test ./...` on machines where `/etc/auren-transfer-agent/agent.yaml` already exists after a real bootstrap/install by adding deterministic `LoadOptions.SearchPaths` isolation to config tests.
+- Keeps production runtime discovery unchanged: normal `Load(LoadOptions{})` still searches `.`, `./configs` and `/etc/auren-transfer-agent`.
+- Makes production artifact tests less brittle across WSL/Windows/ZIP extraction by validating Debian maintainer script shebangs and the `build-deb.sh` chmod normalization path instead of requiring source-tree executable bits for `deploy/debian/DEBIAN/*`.
+- Preserves the v1.9.1 Dev Console JSON route hotfix behavior.
+- Cleans stale `.deb`/APT tarball artifacts before building a release so `dist/apt` only indexes the current version.
+
+## v1.10.0 — Dev Console JSON Route Hotfix
 
 - Corrige carregamento do Local Dev Console quando endpoints JSON retornam `404 page not found` ou outro texto não JSON.
 - Frontend passa a validar HTTP status, Content-Type e corpo antes de fazer parse JSON, exibindo diagnóstico acionável.
@@ -9,7 +64,7 @@
 - Adiciona fallback JSON em `/_auren/dev/api/*` para evitar 404 textual no console.
 
 
-## [v1.9.1] - 2026-07-09
+## [v1.10.0] - 2026-07-09
 
 ### Added
 - Added Local Dev Console for Agent development diagnostics.
@@ -23,7 +78,7 @@
 - `doctor --online` now also checks the local Dev Console endpoint when enabled.
 - Startup diagnostics print Dev Console URLs when the HTTP server is enabled.
 
-## [v1.9.1] - 2026-07-09
+## [v1.10.0] - 2026-07-09
 
 ### Added
 
@@ -37,7 +92,7 @@
 
 ### Changed
 
-- Release pipeline now generates ZIP, `.deb` and `auren-transfer-agent-apt-repo-v1.9.1.tar.gz`.
+- Release pipeline now generates ZIP, `.deb` and `auren-transfer-agent-apt-repo-v1.10.0.tar.gz`.
 - Bootstrap no longer fails the full registration flow when `--start-service` is used in an environment where `systemctl` exists but PID 1 is not systemd.
 - `doctor` and `status` now make systemd manageability clearer for WSL/container lab environments.
 
@@ -93,7 +148,7 @@
 ### Notes
 
 - This version expects the Media Hub side to expose the 47.15/47.16 transfer-agent claim/callback endpoints.
-- Public gateway runtime remains reserved for v1.9.1.
+- Public gateway runtime remains reserved for v1.10.0.
 - Full production multipart Auren Storage adapter remains reserved for v1.3.0.
 
 ## [v1.1.0] - 2026-07-09
@@ -109,7 +164,7 @@
 ### Notes
 
 - Real transfer execution remains intentionally unchanged and still uses the existing noop worker foundation. Download/upload offload is reserved for v1.2.0.
-- Public gateway runtime remains reserved for v1.9.1.
+- Public gateway runtime remains reserved for v1.10.0.
 
 ## [v1.0.0] - 2026-07-09
 
