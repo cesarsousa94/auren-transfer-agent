@@ -1,6 +1,6 @@
-# Local Dev Console — v1.9.0
+# Local Dev Console — v1.9.1
 
-Auren Transfer Agent v1.9.0 adds a lightweight local console for development and first production validation. It intentionally does not replace Prometheus or Grafana. Its goal is to make the Agent understandable while integrating it with Auren Media Hub.
+Auren Transfer Agent v1.9.1 adds a lightweight local console for development and first production validation. It intentionally does not replace Prometheus or Grafana. Its goal is to make the Agent understandable while integrating it with Auren Media Hub.
 
 ## Pages
 
@@ -45,7 +45,7 @@ dev_ui:
   refresh_interval: 2s
 ```
 
-For package/bootstrap installs, the v1.9.0 bootstrap writes:
+For package/bootstrap installs, the v1.9.1 bootstrap writes:
 
 ```yaml
 dev_ui:

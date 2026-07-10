@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 APP_NAME="auren-transfer-agent"
 VERSION="${VERSION:-v1.6.0}"
-DOWNLOAD_BASE="${DOWNLOAD_BASE:-https://downloads.auren.app/agent}"
+DOWNLOAD_BASE="${DOWNLOAD_BASE:-https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent}"
 DEB_PATH=""
 MEDIA_HUB=""
 TOKEN=""

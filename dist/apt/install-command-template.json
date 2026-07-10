@@ -1,0 +1,9 @@
+{
+  "version": "1.6.0",
+  "repository_url": "https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent/apt",
+  "key_url": "https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent/apt/auren-transfer-agent.gpg",
+  "default_channel": "stable",
+  "component": "main",
+  "signed": false,
+  "command_template": "curl -fsSL https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent/apt/install-apt.sh | sudo bash -s -- --media-hub {{media_hub_url}} --token {{registration_token}} --role {{role}} --region {{region}} --start-service"
+}

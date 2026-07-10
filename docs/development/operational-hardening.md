@@ -1,6 +1,6 @@
-# Operational Hardening — v1.9.0
+# Operational Hardening — v1.9.1
 
-Auren Transfer Agent v1.9.0 adds production safety controls around the Media Hub connector, transfer executor, Auren Storage adapter and Gateway Runtime.
+Auren Transfer Agent v1.9.1 adds production safety controls around the Media Hub connector, transfer executor, Auren Storage adapter and Gateway Runtime.
 
 The Agent still does not make business decisions. These controls only determine whether the node is mechanically safe to accept more work.
 

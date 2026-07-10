@@ -7,7 +7,7 @@ const (
 	AppName = "auren-transfer-agent"
 
 	// Version identifies this complete project delivery.
-	Version = "v1.9.0"
+	Version = "v1.9.1"
 
 	// Status describes the maturity of the current delivery.
 	Status = "production/ready"

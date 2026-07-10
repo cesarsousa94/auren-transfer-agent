@@ -38,7 +38,7 @@ import (
 
 // Run starts the Auren Transfer Agent foundation executable.
 //
-// v1.9.0 keeps the production runtime and adds the local Dev Console.
+// v1.9.1 keeps the production runtime and adds the local Dev Console.
 func Run(args []string) error {
 	if len(args) > 0 {
 		switch strings.TrimSpace(args[0]) {
@@ -526,7 +526,7 @@ func printHelp(out io.Writer) {
 	fmt.Fprintln(out, "  auren-transfer-agent status [--config /etc/auren-transfer-agent/agent.yaml]")
 	fmt.Fprintln(out, "  auren-transfer-agent [--config ./configs/agent.yaml] [--version] [--help]")
 	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Production v1.9.0 supports validated configuration, logging, HTTP APIs, identity, worker engine contracts, real transfer execution, Auren Storage v1 multipart production uploads, public Gateway Runtime, operational hardening, Debian/Ubuntu packaging, signed APT distribution and the local Dev Console for metrics and request tracing.")
+	fmt.Fprintln(out, "Production v1.9.1 supports validated configuration, logging, HTTP APIs, identity, worker engine contracts, real transfer execution, Auren Storage v1 multipart production uploads, public Gateway Runtime, operational hardening, Debian/Ubuntu packaging, signed APT distribution and the local Dev Console for metrics and request tracing.")
 }
 
 func rateLimitValue(enabled bool, configured int) int {

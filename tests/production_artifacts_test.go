@@ -65,8 +65,8 @@ func TestProductionArtifactsReferenceVersion(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", file, err)
 		}
-		if !strings.Contains(string(content), "v1.9.0") && !strings.Contains(string(content), "1.9.0") {
-			t.Fatalf("expected %s to reference v1.9.0", file)
+		if !strings.Contains(string(content), "v1.9.1") && !strings.Contains(string(content), "1.9.1") {
+			t.Fatalf("expected %s to reference v1.9.1", file)
 		}
 	}
 }

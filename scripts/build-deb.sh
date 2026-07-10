@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 APP_NAME="auren-transfer-agent"
-VERSION="${1:-v1.9.0}"
+VERSION="${1:-v1.9.1}"
 ARCH="${DEB_ARCH:-amd64}"
 DIST_DIR="${DIST_DIR:-dist}"
 BINARY="${BINARY:-bin/${APP_NAME}}"
@@ -11,7 +11,7 @@ ROOT="${DIST_DIR}/deb/${APP_NAME}_${PACKAGE_VERSION}_${ARCH}"
 DEB_PATH="${DIST_DIR}/${APP_NAME}_${PACKAGE_VERSION}_${ARCH}.deb"
 
 if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "version must look like v1.9.0" >&2
+  echo "version must look like v1.9.1" >&2
   exit 1
 fi
 if [[ ! -x "${BINARY}" ]]; then

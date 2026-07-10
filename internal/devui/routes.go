@@ -43,7 +43,10 @@ func Routes(options Options) []server.RouteDefinition {
 		{Name: "devui.metrics", Method: http.MethodGet, Pattern: path + "/metrics", Handler: htmlHandler(options, "metrics")},
 		{Name: "devui.requests", Method: http.MethodGet, Pattern: path + "/requests", Handler: htmlHandler(options, "requests")},
 		{Name: "devui.api.snapshot", Method: http.MethodGet, Pattern: path + "/api/snapshot", Handler: snapshotHandler(options)},
+		{Name: "devui.api.snapshot.trailing", Method: http.MethodGet, Pattern: path + "/api/snapshot/", Handler: snapshotHandler(options)},
 		{Name: "devui.api.requests", Method: http.MethodGet, Pattern: path + "/api/requests", Handler: requestsHandler(options)},
+		{Name: "devui.api.requests.trailing", Method: http.MethodGet, Pattern: path + "/api/requests/", Handler: requestsHandler(options)},
+		{Name: "devui.api.fallback", Method: http.MethodGet, Pattern: path + "/api/*", Handler: apiNotFoundHandler(path)},
 	}
 }
 
@@ -72,7 +75,7 @@ func snapshotHandler(options Options) http.HandlerFunc {
 			snapshot.RequestCounters = options.Recorder.Counters()
 			snapshot.RecentRequests = options.Recorder.Snapshot(25)
 		}
-		writeJSON(writer, snapshot)
+		writeJSON(writer, http.StatusOK, snapshot)
 	}
 }
 
@@ -80,15 +83,31 @@ func requestsHandler(options Options) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		limit := 200
 		if options.Recorder == nil {
-			writeJSON(writer, []RequestRecord{})
+			writeJSON(writer, http.StatusOK, []RequestRecord{})
 			return
 		}
-		writeJSON(writer, options.Recorder.Snapshot(limit))
+		writeJSON(writer, http.StatusOK, options.Recorder.Snapshot(limit))
 	}
 }
 
-func writeJSON(writer http.ResponseWriter, payload any) {
+func apiNotFoundHandler(basePath string) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		writeJSON(writer, http.StatusNotFound, map[string]any{
+			"error":   "dev_ui_api_route_not_found",
+			"message": "Endpoint JSON do Dev Console não encontrado.",
+			"path":    request.URL.Path,
+			"expected": []string{
+				normalizeBasePath(basePath) + "/api/snapshot",
+				normalizeBasePath(basePath) + "/api/requests",
+			},
+		})
+	}
+}
+
+func writeJSON(writer http.ResponseWriter, status int, payload any) {
 	writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	writer.Header().Set("X-Content-Type-Options", "nosniff")
+	writer.WriteHeader(status)
 	encoder := json.NewEncoder(writer)
 	encoder.SetIndent("", "  ")
 	_ = encoder.Encode(payload)
@@ -132,12 +151,15 @@ const consoleHTML = `<!doctype html>
 <header><div><h1>Auren Transfer Agent Console</h1><div class="sub">{{.Version}} · atualização automática local para desenvolvimento</div></div><nav><a href="{{.BasePath}}/metrics" class="{{if eq .Page "metrics"}}active{{end}}">Métricas</a><a href="{{.BasePath}}/requests" class="{{if eq .Page "requests"}}active{{end}}">Requisições</a><a href="{{.BasePath}}/api/snapshot">JSON</a></nav></header>
 <main><div id="app" class="pre">Carregando...</div></main>
 <script>
-const BASE={{printf "%q" .BasePath}};const PAGE={{printf "%q" .Page}};const REFRESH={{.RefreshMS}};
+const CONFIG_BASE={{printf "%q" .BasePath}};const PAGE={{printf "%q" .Page}};const REFRESH={{.RefreshMS}};
+function currentBasePath(){const p=window.location.pathname.replace(/\/+$/,'');if(p.endsWith('/metrics'))return p.slice(0,-('/metrics'.length))||CONFIG_BASE;if(p.endsWith('/requests'))return p.slice(0,-('/requests'.length))||CONFIG_BASE;return CONFIG_BASE}
+const BASE=currentBasePath();
 function el(v){return String(v==null?'':v)}
 function num(v){return Number(v||0).toLocaleString('pt-BR')}
 function statusClass(s){s=Number(s||0);return s>=500?'err':(s>=400?'warn':'ok')}
 function escapeHtml(x){return String(x==null?'':x).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
-async function load(){try{const snapReq=await fetch(BASE+'/api/snapshot');const reqReq=await fetch(BASE+'/api/requests');const snap=await snapReq.json();const reqs=await reqReq.json();document.getElementById('app').innerHTML=PAGE==='requests'?renderRequests(snap,reqs):renderMetrics(snap,reqs)}catch(e){document.getElementById('app').innerHTML='<div class="card err">Falha ao carregar console: '+escapeHtml(e.message)+'</div>'}}
+async function readJSON(url){const res=await fetch(url,{headers:{'Accept':'application/json'},cache:'no-store'});const text=await res.text();const ct=res.headers.get('content-type')||'';if(!res.ok){throw new Error(url+' retornou HTTP '+res.status+' '+res.statusText+' · corpo: '+text.slice(0,180))}if(!ct.includes('application/json')){throw new Error(url+' retornou Content-Type inesperado '+(ct||'vazio')+' · corpo: '+text.slice(0,180))}try{return JSON.parse(text)}catch(e){throw new Error(url+' retornou JSON inválido: '+e.message+' · corpo: '+text.slice(0,180))}}
+async function load(){try{const snap=await readJSON(BASE+'/api/snapshot');const reqs=await readJSON(BASE+'/api/requests');document.getElementById('app').innerHTML=PAGE==='requests'?renderRequests(snap,reqs):renderMetrics(snap,reqs)}catch(e){document.getElementById('app').innerHTML='<div class="card err"><b>Falha ao carregar console</b><div class="small">'+escapeHtml(e.message)+'</div><div class="small mono">BASE='+escapeHtml(BASE)+'</div></div>'}}
 function card(label,value,small,cls){return '<div class="card"><div class="label">'+label+'</div><div class="value '+(cls||'')+'">'+value+'</div><div class="small">'+small+'</div></div>'}
 function renderMetrics(s,r){const t=s.transfer||{},g=s.gateway||{},mh=s.media_hub||{},q=s.queue||{},c=s.request_counters||{},h=s.hardening||{};let html='<div class="grid">';html+=card('Node',escapeHtml(el(mh.node_uuid||'—').slice(0,8)),escapeHtml(el(mh.base_url||'Media Hub não configurado')),'');html+=card('Jobs ativos',num(t.active_jobs)+'/'+num(t.max_concurrent_jobs),'completed '+num(t.completed_jobs)+' · failed '+num(t.failed_jobs),'');html+=card('Sessões gateway',num(g.active_sessions)+'/'+num(g.max_sessions),'egress '+num(g.current_egress_mbps)+' Mbps','');html+=card('Requisições',num(c.total),'in '+num(c.inbound)+' · out '+num(c.outbound)+' · erros '+num(c.errors),'');html+='</div><div class="grid">';html+=card('Fila local',num(q.length)+'/'+num(q.capacity),'driver '+escapeHtml(el(q.driver||'—')),'');html+=card('Transferência',t.claim_enabled?'claim on':'claim off','work '+escapeHtml(el(t.work_dir||'—')),t.claim_enabled?'ok':'warn');html+=card('Gateway',g.enabled?'ativo':'inativo','proxy '+Boolean(g.proxy_enabled)+' · redirect '+Boolean(g.redirect_enabled),g.enabled?'ok':'warn');html+=card('Hardening',escapeHtml(el(h.reason||'—')),'drain '+Boolean(h.drain_enabled)+' · disk '+Boolean(h.disk_guard_enabled),h.allowed?'ok':'warn');html+='</div><div class="section"><h2>Últimas requisições</h2>'+requestsTable(r.slice(0,12))+'</div><div class="section"><h2>Snapshot JSON</h2><div class="card pre">'+escapeHtml(JSON.stringify(s,null,2))+'</div></div>';return html}
 function renderRequests(s,r){const c=s.request_counters||{};let html='<div class="grid">';html+=card('Total',num(c.total),'','');html+=card('Inbound',num(c.inbound),'','');html+=card('Outbound',num(c.outbound),'','');html+=card('Erros',num(c.errors),'',Number(c.errors||0)>0?'err':'ok');html+='</div>'+requestsTable(r);return html}

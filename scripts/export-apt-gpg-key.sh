@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Auren Transfer Agent v1.9.0 distribution helper
+# Auren Transfer Agent v1.9.1 distribution helper
 set -Eeuo pipefail
 
 KEY_ID="${APT_GPG_KEY_ID:-${1:-}}"

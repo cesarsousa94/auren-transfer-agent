@@ -2,12 +2,12 @@
 set -Eeuo pipefail
 
 APP_NAME="auren-transfer-agent"
-VERSION="${VERSION:-v1.9.0}"
-DOWNLOAD_BASE="${DOWNLOAD_BASE:-https://downloads.auren.app/agent}"
-APT_REPO_URL="${APT_REPO_URL:-https://downloads.auren.app/agent/apt}"
+VERSION="${VERSION:-v1.9.1}"
+DOWNLOAD_BASE="${DOWNLOAD_BASE:-https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent}"
+APT_REPO_URL="${APT_REPO_URL:-https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent/apt}"
 APT_CODENAME="${APT_CODENAME:-stable}"
 APT_COMPONENT="${APT_COMPONENT:-main}"
-APT_KEY_URL="${APT_KEY_URL:-https://downloads.auren.app/agent/apt/auren-transfer-agent.gpg}"
+APT_KEY_URL="${APT_KEY_URL:-https://auren-storage-bucket.s3.us-east-2.amazonaws.com/agent/apt/auren-transfer-agent.gpg}"
 ALLOW_UNSIGNED="false"
 INSTALL_METHOD="auto"
 DEB_PATH=""
@@ -34,7 +34,7 @@ Install source:
   --codename NAME               APT codename/channel, default: ${APT_CODENAME}
   --component NAME              APT component, default: ${APT_COMPONENT}
   --deb PATH                    install a local .deb instead of downloading
-  --version v1.9.0              release version to download in direct .deb mode
+  --version v1.9.1              release version to download in direct .deb mode
 
 Bootstrap:
   --media-hub URL               Auren Media Hub URL

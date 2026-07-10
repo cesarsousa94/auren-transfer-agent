@@ -1,6 +1,6 @@
 # Configuration Development Notes
 
-Auren Transfer Agent v1.9.0 keeps the configuration contract stable and expands the Media Hub section with operational hardening controls while retaining Gateway Runtime controls and the Auren Storage production adapter fallback key. This file defines the configuration surface, precedence rules, default APIs and validation rules used by the production runtime.
+Auren Transfer Agent v1.9.1 keeps the configuration contract stable and expands the Media Hub section with operational hardening controls while retaining Gateway Runtime controls and the Auren Storage production adapter fallback key. This file defines the configuration surface, precedence rules, default APIs and validation rules used by the production runtime.
 
 ## Search order
 
@@ -265,7 +265,7 @@ queue:
 - `media_hub.gateway_heartbeat_interval`: fallback session heartbeat interval when Media Hub does not provide one.
 - `media_hub.gateway_token_ttl`: local policy hint for public handoff token lifetime; Media Hub remains the source of truth.
 
-## v1.9.0 operational hardening keys
+## v1.9.1 operational hardening keys
 
 | Key | Environment variable |
 | --- | --- |

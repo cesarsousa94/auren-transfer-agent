@@ -11,7 +11,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o
 FROM alpine:3.20
 LABEL org.opencontainers.image.title="Auren Transfer Agent"
 LABEL org.opencontainers.image.description="High-reliability media transfer agent"
-LABEL org.opencontainers.image.version="v1.9.0"
+LABEL org.opencontainers.image.version="v1.9.1"
 LABEL org.opencontainers.image.source="https://github.com/auren/auren-transfer-agent"
 RUN apk add --no-cache ca-certificates tzdata \
     && addgroup -S auren \

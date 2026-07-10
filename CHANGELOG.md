@@ -1,6 +1,15 @@
 # Changelog
 
-## [v1.9.0] - 2026-07-09
+## v1.9.1 — Dev Console JSON Route Hotfix
+
+- Corrige carregamento do Local Dev Console quando endpoints JSON retornam `404 page not found` ou outro texto não JSON.
+- Frontend passa a validar HTTP status, Content-Type e corpo antes de fazer parse JSON, exibindo diagnóstico acionável.
+- Dev UI passa a resolver o base path a partir da URL atual, tolerando proxy/túnel com prefixo.
+- Adiciona aliases com barra final para `/api/snapshot/` e `/api/requests/`.
+- Adiciona fallback JSON em `/_auren/dev/api/*` para evitar 404 textual no console.
+
+
+## [v1.9.1] - 2026-07-09
 
 ### Added
 - Added Local Dev Console for Agent development diagnostics.
@@ -14,7 +23,7 @@
 - `doctor --online` now also checks the local Dev Console endpoint when enabled.
 - Startup diagnostics print Dev Console URLs when the HTTP server is enabled.
 
-## [v1.9.0] - 2026-07-09
+## [v1.9.1] - 2026-07-09
 
 ### Added
 
@@ -28,7 +37,7 @@
 
 ### Changed
 
-- Release pipeline now generates ZIP, `.deb` and `auren-transfer-agent-apt-repo-v1.9.0.tar.gz`.
+- Release pipeline now generates ZIP, `.deb` and `auren-transfer-agent-apt-repo-v1.9.1.tar.gz`.
 - Bootstrap no longer fails the full registration flow when `--start-service` is used in an environment where `systemctl` exists but PID 1 is not systemd.
 - `doctor` and `status` now make systemd manageability clearer for WSL/container lab environments.
 
@@ -84,7 +93,7 @@
 ### Notes
 
 - This version expects the Media Hub side to expose the 47.15/47.16 transfer-agent claim/callback endpoints.
-- Public gateway runtime remains reserved for v1.9.0.
+- Public gateway runtime remains reserved for v1.9.1.
 - Full production multipart Auren Storage adapter remains reserved for v1.3.0.
 
 ## [v1.1.0] - 2026-07-09
@@ -100,7 +109,7 @@
 ### Notes
 
 - Real transfer execution remains intentionally unchanged and still uses the existing noop worker foundation. Download/upload offload is reserved for v1.2.0.
-- Public gateway runtime remains reserved for v1.9.0.
+- Public gateway runtime remains reserved for v1.9.1.
 
 ## [v1.0.0] - 2026-07-09
 

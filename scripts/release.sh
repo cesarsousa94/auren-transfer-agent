@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Current package baseline: v1.9.0
+# Current package baseline: v1.9.1
 set -Eeuo pipefail
 
 VERSION="${1:-}"

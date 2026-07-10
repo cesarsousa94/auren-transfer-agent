@@ -2,19 +2,19 @@ Origin: Auren
 Label: Auren Transfer Agent
 Suite: stable
 Codename: stable
-Date: Thu, 09 Jul 2026 20:25:04 +0000
+Date: Fri, 10 Jul 2026 08:21:14 +0000
 Architectures: amd64
 Components: main
 Description: Auren Transfer Agent Debian repository
 MD5Sum:
- a4ca26629aaa669bf5d9445b6533dc4f              654 main/binary-amd64/Packages
- e7a5eae421cdf45aba1ce799e66e9d7c              447 main/binary-amd64/Packages.gz
+ 3fae259881b267be77c98dcddc43cb11              654 main/binary-amd64/Packages
+ 762703634c3978b835ac25d9f7945ec4              449 main/binary-amd64/Packages.gz
 SHA1:
- e873ec1ca0766709e2fd342482358c62c7389b2c              654 main/binary-amd64/Packages
- 542da5941554831e2fc829a09b4a58e427f2f289              447 main/binary-amd64/Packages.gz
+ 0a5ca44685f32a44a26158d7c23383c2a4c0d893              654 main/binary-amd64/Packages
+ 0b4a1aa31164db02e2ec906690a6c1eab338e56e              449 main/binary-amd64/Packages.gz
 SHA256:
- 70a3f2a7aa0a884da79f77d3ea12e9871d3f668db7acb2fda9cae7232387c0e9              654 main/binary-amd64/Packages
- 6deace7b7fbe722ef0047fa8c8c950fa42c730ab0b1235027a0bb9e7e5eebce0              447 main/binary-amd64/Packages.gz
+ 8755e8372cab6a21e0ff26fa9f52231b212c12a7cd25216a48bf53ce5e8c78c9              654 main/binary-amd64/Packages
+ 7a9c889f7e121865aafd1e537b9373aef6e64dae0f425a024114f743e79db924              449 main/binary-amd64/Packages.gz
 SHA512:
- 6c2d5f0f3502e284372fbe338172578302e20798fa5be68e6db859e347e487e67170fbfb2db16db7ba595cb7bec0380d0c49661c766c1ea79fa39a5164436f4e              654 main/binary-amd64/Packages
- ba0726fd412e36b69cbd73e65542bdb188c2a7462c3b3297d893161e1f20b0c234670a13fcab597abd3e77d86fbb3daddaa23758b19ec41d4737fb93db56b5b0              447 main/binary-amd64/Packages.gz
+ e91c81ba0dac21d55ce82b74b07008d198aa1b47d1c1ea6b7360ce94acc56ff41252e7cf59c7faf949dd9915d7dc3b722c68c6daf55b3e93aed96577d70e6701              654 main/binary-amd64/Packages
+ a60588fd88b7347c87b3074b5dd9096b76f9a174cb277d6059f187f11f80e2b57d9f921940ca80079dc0fe47f58e632926cefa0dd55c36d6b7df4769cd32a518              449 main/binary-amd64/Packages.gz

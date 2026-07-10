@@ -1,6 +1,6 @@
-# Media Hub Provider Nodes Install Command — v1.9.0
+# Media Hub Provider Nodes Install Command — v1.9.1
 
-Auren Transfer Agent v1.9.0 includes a repository-side `install-command-template.json` so Auren Media Hub can render a ready-to-copy Linux install command when an operator creates a Provider Node.
+Auren Transfer Agent v1.9.1 includes a repository-side `install-command-template.json` so Auren Media Hub can render a ready-to-copy Linux install command when an operator creates a Provider Node.
 
 ## Expected Media Hub flow
 
@@ -22,7 +22,7 @@ Example:
 
 ```json
 {
-  "version": "1.9.0",
+  "version": "1.9.1",
   "repository_url": "https://downloads.seudominio.com/agent/apt",
   "key_url": "https://downloads.seudominio.com/agent/apt/auren-transfer-agent.gpg",
   "default_channel": "stable",
